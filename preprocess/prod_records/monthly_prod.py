@@ -82,7 +82,7 @@ class ProductionPreprocessor:
         during which production actually occurred.
         :return:
         """
-        df = self.fill_missing_months()
+        self.fill_missing_months()
         sum_prod = 0
         while sum_prod == 0:
             first = self.first_month
@@ -90,8 +90,8 @@ class ProductionPreprocessor:
             for prod_col in self.prod_cols:
                 sum_prod += self.df[self.df[self.date_col] == first][prod_col].sum()
             if sum_prod == 0:
-                self.df = self.df.drop(df[df[self.date_col] == first].index)
-        self.df = df
+                self.df = self.df.drop(self.df[self.df[self.date_col] == first].index)
+        self.df = self.df
         return self.df
 
     def clean_formation(self) -> pd.DataFrame:
