@@ -71,8 +71,8 @@ class ProductionPreprocessor:
         every_month = pd.DataFrame()
         every_month[self.date_col] = pd.date_range(
             start=self.first_month, end=self.last_month, freq='MS')
-        df = pd.concat([df, every_month], ignore_index=True).fillna(0)
-        df.sort_values(by=[self.date_col], ascending=True)
+        df = df.merge(every_month, how='outer', on=self.date_col).fillna(0)
+        df = df.sort_values(by=[self.date_col], ascending=True)
         self.df = df
         return df
 
