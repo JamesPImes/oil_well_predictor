@@ -1,4 +1,3 @@
-
 """
 Load and integrate well data (SHL and BHL datasets), and cull it to the
 desired relevant wells (limited to wells found in the BHL dataset --
@@ -10,7 +9,6 @@ SHL data:  https://ecmc.state.co.us/documents/data/downloads/gis/WELLS_SHP.ZIP
 
 BHL data:  https://ecmc.state.co.us/documents/data/downloads/gis/DIRECTIONAL_BOTTOMHOLE_LOCATIONS_SHP.ZIP
 (Extract ``Directional_Bottomhole_Locations.dbf`` and save it as a ``.csv``.)
-
 """
 
 import os
@@ -20,10 +18,17 @@ from pathlib import Path
 import pandas as pd
 import dotenv
 
+__all__ = [
+    'load_raw_well_data',
+    'cull_by_county_code',
+    'cull_by_spud_date',
+    'cull_by_well_class',
+    'default_load_and_cull',
+]
+
 dotenv.load_dotenv()
 RAW_DATA_DIR = Path(os.getenv('RAW_DATA_DIR'))
 WORKING_DATA_DIR = Path(os.getenv('WORKING_DATA_DIR'))
-
 
 bhl_cols_to_drop = [
     'Well_Name',
@@ -92,7 +97,7 @@ def load_raw_well_data(
         shl,
         on='API_Label',
         how='left',
-        suffixes=('_bhl', 'shl'),
+        suffixes=('_bhl', '_shl'),
     )
     return wells
 
@@ -134,7 +139,7 @@ def cull_by_spud_date(
     mask = wells[
         (wells['Spud_Date'] < datetime(earliest.year, earliest.month, earliest.day))
         | (wells['Spud_Date'] > datetime(latest.year, latest.month, latest.day))
-    ]
+        ]
     return wells.drop(mask.index)
 
 
@@ -150,11 +155,11 @@ def cull_by_well_class(wells: pd.DataFrame, keep_well_classes: list[str]) -> pd.
     return wells.drop(wells[~wells['Well_Class'].isin(keep_well_classes)].index)
 
 
-def default_load_and_cull(out_fp: Path = default_out_fp):
+def default_load_and_cull() -> pd.DataFrame:
     """
     Load and cull wells with configured defaults.
-    :param out_fp: Filepath at which to save the .csv file.
-    :return:
+    :return: A dataframe with the loaded, integrated, and culled well
+     records.
     """
     wells = load_raw_well_data(RAW_DATA_DIR)
     wells = cull_by_county_code(wells, keep_counties=default_api_counties_to_keep)
@@ -164,12 +169,4 @@ def default_load_and_cull(out_fp: Path = default_out_fp):
         latest=default_latest_spud_date,
         drop_missing=True)
     wells = cull_by_well_class(wells, keep_well_classes=default_well_classes_to_keep)
-    wells.to_csv(out_fp)
-
-
-def main():
-    default_load_and_cull()
-
-
-if __name__ == '__main__':
-    main()
+    return wells
