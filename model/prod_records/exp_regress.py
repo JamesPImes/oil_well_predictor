@@ -19,19 +19,24 @@ class ExpRegressionModel:
         """
         We convert the exponential to a linear function:
 
-        i.e.:  ``f(x) = a * e^(bx)  ==>  ln[f(x)] ==>  ln(a) + bx``
+        i.e.:  ``f(x) = A * e^(bx)  ==>  ln[f(x)] ==>  ln(A) + bx``
+        where ``a = ln(A)``.
 
-        ``a`` and ``b`` are the coefficients of that linear function,
-        which we will later convert back in order to make predictions:
-        ``f(x) = e^(a + bx)``
-        ... or equivalently:
-        ``f(x) = e^a * e^(bx)``
+        The linear function will later be converted back in order to
+        make predictions:  ``f(x) = e^(a + bx)``
 
-        (Simply use ``.predict()`` method after training).
+        or equivalently:  ``f(x) = e^a * e^(bx)``
 
-        :param a:
-        :param b:
-        :param day_ranges:
+        (Use ``.predict()`` method after training.)
+
+        :param a: Linear coefficient ``a``, as defined above. (If not
+         defined here, it will be defined by calling ``.train()`` on a
+         set of monthly production records.)
+        :param b: Linear coefficient ``b``, as defined above. (If not
+         defined here, it will be defined by calling ``.train()`` on a
+         set of monthly production records.)
+        :param day_ranges: Limit our review to the selected day ranges.
+         Default is ``(0, 1461)`` -- i.e., the first 4 years.
         """
         self.a = a
         self.b = b
