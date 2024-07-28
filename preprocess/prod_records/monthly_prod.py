@@ -38,6 +38,7 @@ class ProductionPreprocessor:
     def preprocess_all(self) -> pd.DataFrame:
         self.fill_missing_months()
         self.drop_leading_nonproducing_months()
+        self.drop_first_incomplete_month()
         self.clean_formation()
         self.recategorize_not_completed()
         self.fill_prod_per_day()
@@ -94,6 +95,19 @@ class ProductionPreprocessor:
         self.df = self.df
         return self.df
 
+    def drop_first_incomplete_month(self) -> pd.DataFrame:
+        """
+        Drop the first month if it did not produce every day of the month.
+        :return:
+        """
+        df = self.df
+        first_month = self.first_month
+        days_produced = df[df[self.date_col] == first_month][self.days_prod_col].max()
+        calendar_days = get_days_in_month(first_month)
+        if days_produced != calendar_days:
+            self.df = df.drop(df[df[self.date_col] == first_month].index)
+        return self.df
+
     def clean_formation(self) -> pd.DataFrame:
         """Trim white space around the formation names."""
         self.df[self.formation_col] = self.df[self.formation_col].str.strip()
@@ -113,14 +127,15 @@ class ProductionPreprocessor:
         formations = self.df[self.formation_col].unique()
         meaningful_formations = set(formations) - set(nc_formations)
         if len(meaningful_formations) == 1 and len(formations) > 1:
-            self.df[self.formation_col] = self.df[self.formation_col].replace(nc_formations, meaningful_formations[0])
+            formation = meaningful_formations.pop()
+            self.df[self.formation_col] = self.df[self.formation_col].replace(nc_formations, formation)
         return self.df
 
     def fill_prod_per_day(self) -> pd.DataFrame:
         """
-        Calculates and fills BBLs produced per production-day (``'bbls_per_prod_day'``)
-        and BBLs produced per calendar day (``'bbls_per_calendar_day'``).
-        Also fills ``calendar_days``.
+        Calculates and fills BBLs produced per production-day
+        (``'bbls_per_prod_day'``) and BBLs produced per calendar day
+        (``'bbls_per_calendar_day'``).  Also fills ``calendar_days``.
 
         Note: Does not consider multiple producing formations within a given
         well to occur during the same month, but rather treats each row as
