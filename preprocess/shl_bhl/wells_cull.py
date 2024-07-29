@@ -24,6 +24,7 @@ __all__ = [
     'cull_by_spud_date',
     'cull_by_well_class',
     'default_load_and_cull',
+    'cull_by_twprge',
 ]
 
 dotenv.load_dotenv()
@@ -153,6 +154,19 @@ def cull_by_well_class(wells: pd.DataFrame, keep_well_classes: list[str]) -> pd.
     :return: A new dataframe limited to the desired wells.
     """
     return wells.drop(wells[~wells['Well_Class'].isin(keep_well_classes)].index)
+
+
+def cull_by_twprge(wells: pd.DataFrame, keep_twprge: list[str]) -> pd.DataFrame:
+    """
+    Cull wells by Twp/Rge.
+    :param wells: A dataframe of the loaded and integrated well data
+     (SHL + BHL).
+    :param keep_twprge: List of Twp/Rge's to keep (in the format
+     ``'9n57w'``).
+    :return: A new dataframe limited to the desired wells.
+    """
+    wells['twprge'] = [f"{twp}{rge}".lower() for twp, rge in zip(wells['Township'], wells['Range'])]
+    return wells.drop(wells[~wells['twprge'].isin(keep_twprge)].index)
 
 
 def default_load_and_cull() -> pd.DataFrame:
