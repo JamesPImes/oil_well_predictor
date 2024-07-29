@@ -2,6 +2,7 @@ from calendar import monthrange
 from datetime import datetime
 
 import pandas as pd
+import numpy as np
 
 __all__ = [
     'ProductionPreprocessor',
@@ -41,6 +42,7 @@ class ProductionPreprocessor:
         self.drop_first_incomplete_month()
         self.clean_formation()
         self.recategorize_not_completed()
+        self.zero_out_negatives()
         self.fill_prod_per_day()
         return self.df
 
@@ -130,6 +132,17 @@ class ProductionPreprocessor:
             formation = meaningful_formations.pop()
             self.df[self.formation_col] = self.df[self.formation_col].replace(nc_formations, formation)
         return self.df
+
+    def zero_out_negatives(self) -> pd.DataFrame:
+        """
+        Replace negative values in the production column(s) with zero.
+        :return:
+        """
+        df = self.df
+        for prod_col in self.prod_cols:
+            df[prod_col] = np.where(df[prod_col] < 0, 0, df[prod_col])
+        self.df = df
+        return df
 
     def fill_prod_per_day(self) -> pd.DataFrame:
         """
