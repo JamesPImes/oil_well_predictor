@@ -103,6 +103,16 @@ def load_raw_well_data(
     return wells
 
 
+def drop_duplicate_api_nums(wells: pd.DataFrame) -> pd.DataFrame:
+    """
+    Drop duplicate wells, as determined by shared API number.
+    :param wells: A dataframe of the loaded and integrated well data
+     (SHL + BHL).
+    :return: A new dataframe with duplicate wells culled.
+    """
+    return wells.drop_duplicates(subset='API_Label', keep='first')
+
+
 def cull_by_county_code(wells: pd.DataFrame, keep_counties: list[int]) -> pd.DataFrame:
     """
     Cull wells by county code (as encoded in the API number) -- i.e.,
@@ -183,4 +193,5 @@ def default_load_and_cull() -> pd.DataFrame:
         latest=default_latest_spud_date,
         drop_missing=True)
     wells = cull_by_well_class(wells, keep_well_classes=default_well_classes_to_keep)
+    wells = drop_duplicate_api_nums(wells)
     return wells
