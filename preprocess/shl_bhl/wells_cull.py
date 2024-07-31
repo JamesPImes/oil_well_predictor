@@ -185,7 +185,7 @@ def default_load_and_cull() -> pd.DataFrame:
     :return: A dataframe with the loaded, integrated, and culled well
      records.
     """
-    wells = load_raw_well_data(RAW_DATA_DIR)
+    wells = load_raw_well_data(RAW_DATA_DIR / 'Wells.csv', RAW_DATA_DIR / 'Directional_Bottomhole_Locations.csv')
     wells = cull_by_county_code(wells, keep_counties=default_api_counties_to_keep)
     wells = cull_by_spud_date(
         wells,
