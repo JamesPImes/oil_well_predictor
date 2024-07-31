@@ -20,18 +20,21 @@ class ProductionPreprocessor:
             days_prod_col: str = 'Days Produced',
             date_col: str = 'First of Month',
             formation_col: str = 'Formation',
+            lateral_length_ft: float = None
     ):
         """
         :param prod_records: A dataframe of monthly production records.
         :param bbls_col: Header for BBLs produced each month.
         :param days_prod_col: Header for number of days produced each month.
         :param date_col: Header for the date column.
+        param: lateral_length_ft: The length of the lateral in feet.
         """
         self.df = prod_records
         self.bbls_col = bbls_col
         self.days_prod_col = days_prod_col
         self.date_col = date_col
         self.formation_col = formation_col
+        self.lateral_length_ft = lateral_length_ft
         self.prod_cols = [
             self.bbls_col,
         ]
@@ -160,6 +163,20 @@ class ProductionPreprocessor:
         df['bbls_per_prod_day'] = df['bbls_per_prod_day'].fillna(value=0)
         df['calendar_days'] = df[self.date_col].apply(get_days_in_month)
         df['bbls_per_calendar_day'] = df[self.bbls_col] / df['calendar_days']
+        self.df = df
+        return df
+
+    def normalize_for_lateral(self, lateral_length_ft: float) -> pd.DataFrame:
+        """
+        Normalize the monthly production values into BBLs/ft (i.e., BBLs
+        produced per foot of lateral).
+        :param lateral_length_ft: The length of the lateral leg of this
+         well.
+        :return:
+        """
+        df = self.df
+        df['bbls_per_prod_day_latnorm'] = df['bbls_per_prod_day'] / lateral_length_ft
+        df['bbls_per_calendar_day_latnorm'] = df['bbls_per_calendar_day'] / lateral_length_ft
         self.df = df
         return df
 
