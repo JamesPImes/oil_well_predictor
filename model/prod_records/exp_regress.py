@@ -9,12 +9,15 @@ __all__ = [
 class ExpRegressionModel:
     """
     A weighted exponential regression model for monthly production
-    records.
+    records (in BBLs/calendar day), adjusted for length of the lateral
+    leg of the well.
     """
+
     def __init__(
             self,
             a: float = np.nan,
             b: float = np.nan,
+            lateral_length_ft: float = None,
             day_ranges: tuple[int, int] = (0, 1461)):
         """
         We convert the exponential to a linear function:
@@ -27,7 +30,7 @@ class ExpRegressionModel:
 
         or equivalently:  ``f(x) = e^a * e^(bx)``
 
-        (Use ``.predict()`` method after training.)
+        (Use ``.predict_bbls_per_calendar_day()`` method after training.)
 
         :param a: Linear coefficient ``a``, as defined above. (If not
          defined here, it will be defined by calling ``.train()`` on a
@@ -35,45 +38,64 @@ class ExpRegressionModel:
         :param b: Linear coefficient ``b``, as defined above. (If not
          defined here, it will be defined by calling ``.train()`` on a
          set of monthly production records.)
+        :param: lateral_length_ft: The length of the lateral in feet.
+         (If not specified here, must specify at ``.train()``.)
         :param day_ranges: Limit our review to the selected day ranges.
          Default is ``(0, 1461)`` -- i.e., the first 4 years.
         """
         self.a = a
         self.b = b
         self.day_ranges = day_ranges
+        self.lateral_length_ft = lateral_length_ft
 
-    def train(self, prod_records: pd.DataFrame, day_ranges: tuple[int, int] = None):
+    def train(
+            self,
+            prod_records: pd.DataFrame,
+            lateral_length_ft: float = None,
+            day_ranges: tuple[int, int] = None,
+    ) -> (float, float):
         """
         Run a weighted exponential regression on monthly production
         records, limited to the specified ``day_ranges`` (defaults to
         the first 1461, i.e., the first 4 years).
-        
+
         Resulting coefficients ``a`` and ``b`` are stored as attributes.
         Later, generate predictions from this regression with
-        ``.predict()``.
-        
+        ``.predict_bbls_per_calendar_day()``.
+
         :param prod_records: A dataframe of monthly production records.
          Must already be preprocessed and sorted by month (ascending).
+        :param lateral_length_ft: The length of the lateral in feet.
+         If not specified here, will pull from what was specified at
+         init. If not specified there either, will raise a
+         ``ValueError``. (If specified as this parameter, will also
+         store to ``.lateral_length_ft`` attribute.)
         :param day_ranges: Limit our review to the selected day ranges.
          Default is ``(0, 1461)`` -- i.e., the first 4 years.
         :return: None
         """
         if day_ranges is None:
             day_ranges = self.day_ranges
+        if lateral_length_ft is None:
+            lateral_length_ft = self.lateral_length_ft
+        else:
+            self.lateral_length_ft = lateral_length_ft
+        if lateral_length_ft is None:
+            raise ValueError('Must specify lateral length.')
         prod_records = prod_records.copy(deep=True)
         # Swap 0's for arbitrarily small values to avoid log issues.
         prod_records['bbls_per_prod_day'] = prod_records['bbls_per_prod_day'].replace(0, 0.0000001)
         prod_records['bbls_per_calendar_day'] = prod_records['bbls_per_calendar_day'].replace(0, 0.0000001)
         x = prod_records['calendar_days'].cumsum()
         x = x.loc[lambda z: (z >= day_ranges[0]) & (z <= day_ranges[1])]
-        y = prod_records['bbls_per_calendar_day'][x.index.values]
+        y = prod_records['bbls_per_calendar_day'][x.index.values] / lateral_length_ft
 
         # Weighted to favor larger numbers.
         poly_coefs = np.polyfit(x, np.log(y), 1, w=np.sqrt(y))
         self.b, self.a = poly_coefs
         return self.a, self.b
 
-    def predict(self, cumulative_elapsed_days):
+    def predict_bbls_per_calendar_day(self, cumulative_elapsed_days, lateral_length_ft: float = None):
         """
         Generate predicted BBLs/day over time for the provided list of
         cumulative elapsed days (i.e. sum of calendar days for
@@ -82,10 +104,17 @@ class ExpRegressionModel:
 
         :param cumulative_elapsed_days: A sequence of integers
          representing the total time passed since production began.
+        :param lateral_length_ft: The length of the lateral leg of the
+         candidate well. If not provided, will assume that the input
+         used to train the model was NOT normalized for lateral length.
         :return: A sequence of floats, being the predicted BBLs/day that
          are produced.
         """
-        return np.exp(self.a + self.b * cumulative_elapsed_days)
+        if lateral_length_ft is None:
+            lateral_length_ft = self.lateral_length_ft
+        if lateral_length_ft is None:
+            raise ValueError('Must specify lateral length.')
+        return np.exp(self.a + self.b * cumulative_elapsed_days) * lateral_length_ft
 
     @staticmethod
     def weight_models(models: list['ExpRegressionModel'], weights: list[float] = None) -> 'ExpRegressionModel':
