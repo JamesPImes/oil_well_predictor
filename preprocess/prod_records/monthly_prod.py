@@ -180,6 +180,46 @@ class ProductionPreprocessor:
         self.df = df
         return df
 
+    def mean_smooth_zero_production(self) -> pd.DataFrame:
+        """
+        EXPERIMENTAL
+
+        Replace zero-production months with an average of the months
+        immediately before and after that period of non-production
+        (including those positive-production months). That is, for a
+        period of no production from March through July (i.e., 4
+        months), take the average monthly production from February
+        through August (i.e., 6 months), and apply it to all 6 of those
+        months.
+        :return:
+        """
+        df = self.df
+        # Sort by formation and date_col and reset indexes, so that we can
+        # find start/end points (indexes) of periods of zero production.
+        df = df.sort_values(by=[self.formation_col, self.date_col], ascending=True)
+        df = df.reset_index()
+        fmn_col = self.formation_col
+        formations = df[fmn_col].unique()
+        for fmn in formations:
+            for prod_col in self.prod_cols:
+                # We will limit the values we replace to this particular
+                # formation. Otherwise, we might consider
+                fmn_idxs = df[df[fmn_col] == fmn].index
+                start_fmn = min(fmn_idxs)
+                end_fmn = max(fmn_idxs)
+                zero_idxs = df[df[fmn_col] == fmn & df[prod_col] == 0].index
+                zero_ranges = find_ranges(zero_idxs)
+                for i, j in zero_ranges:
+                    idx_i = max(i - 1, start_fmn)
+                    idx_j = min(j + 1, end_fmn)
+                    prod_a = df.iloc[[idx_i]][prod_col]
+                    prod_b = df.iloc[[idx_j]][prod_col]
+                    per_month = (prod_a + prod_b) / (idx_j - idx_i + 1)
+                    df.loc[idx_i:idx_j, prod_col] = per_month
+        df = df.sort_values(by=[self.date_col], ascending=True)
+        self.df = df
+        return df
+
 
 def get_days_in_month(dt) -> int:
     """
@@ -206,3 +246,18 @@ def last_day_of_month(dt):
     """
     last_day = get_days_in_month(dt)
     return datetime(dt.year, dt.month, last_day)
+
+
+def find_ranges(nums: list) -> list:
+    """
+    Find ranges of consecutive integers in the set. Returns a list of
+    tuples, of the first and last numbers (inclusive) in each sequence.
+
+    :param nums: A collection of unique integers.
+    :return: A list of 2-tuples of integers, being the min and max
+     of each range (inclusive).
+    """
+    nnums = sorted(set(nums))
+    starts = [n for n in nnums if n - 1 not in nums]
+    ends = [n for n in nnums if n + 1 not in nums]
+    return [*zip(starts, ends)]
