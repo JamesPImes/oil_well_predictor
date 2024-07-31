@@ -74,6 +74,7 @@ class ExpRegressionModel:
          Default is ``(0, 1461)`` -- i.e., the first 4 years.
         :return: None
         """
+        # TODO: Limit to specific formation.
         if day_ranges is None:
             day_ranges = self.day_ranges
         if lateral_length_ft is None:
@@ -140,3 +141,19 @@ class ExpRegressionModel:
             a += model.a * weight
             b += model.b * weight
         return ExpRegressionModel(a=a, b=b)
+
+    @staticmethod
+    def daily_bbls_to_monthly(bbls_per_day: list[float], days_per_month: list[int]) -> list[float]:
+        """
+        Convert BBLs/calendar day to BBLs/month.
+
+        Note: Both parameters must be equal in length.
+
+        :param bbls_per_day: List of (predicted or actual) BBLs/calendar
+         day.
+        :param days_per_month: List of calendar days in each month.
+        :return:
+        """
+        if len(bbls_per_day) != len(days_per_month):
+            raise IndexError("Length of `bbls_per_day` and `days_per_month` must be equal.")
+        return [bbls * days for bbls, days in zip(bbls_per_day, days_per_month)]
