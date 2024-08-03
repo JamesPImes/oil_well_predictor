@@ -15,7 +15,3 @@ __all__ = [
 
 def load_working_dataset(fp: Path = WORKING_DATA_DIR / WORKING_DATA_FN):
     return pd.read_csv(fp, parse_dates=['Spud_Date', 'Stat_Date'])
-
-
-df = load_working_dataset()
-print(df)
