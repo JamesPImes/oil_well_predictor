@@ -1,5 +1,6 @@
 from calendar import monthrange
 from datetime import datetime
+from functools import cached_property
 
 import pandas as pd
 import numpy as np
@@ -41,6 +42,9 @@ class ProductionPreprocessor:
 
     def preprocess_all(self) -> pd.DataFrame:
         self.fill_missing_months()
+        if not self.has_produced:
+            self.drop_all()
+            return self.df
         self.drop_leading_nonproducing_months()
         self.drop_first_incomplete_month()
         self.clean_formation()
@@ -82,6 +86,25 @@ class ProductionPreprocessor:
         self.df = df
         return df
 
+    @cached_property
+    def has_produced(self) -> bool:
+        """
+        Check if the well has produced anything.
+        :return:
+        """
+        sum_prod = 0
+        for prod_col in self.prod_cols:
+            sum_prod += self.df[prod_col].sum()
+        return sum_prod != 0
+
+    def drop_all(self) -> pd.DataFrame:
+        """
+        Drop every row in the DataFrame.
+        :return:
+        """
+        self.df = self.df.drop(self.df.index)
+        return self.df
+
     def drop_leading_nonproducing_months(self) -> pd.DataFrame:
         """
         Drop all monthly production records before the first month
@@ -90,14 +113,13 @@ class ProductionPreprocessor:
         """
         self.fill_missing_months()
         sum_prod = 0
-        while sum_prod == 0:
+        while sum_prod == 0 and len(self.df) > 0:
             first = self.first_month
             sum_prod = 0
             for prod_col in self.prod_cols:
                 sum_prod += self.df[self.df[self.date_col] == first][prod_col].sum()
             if sum_prod == 0:
                 self.df = self.df.drop(self.df[self.df[self.date_col] == first].index)
-        self.df = self.df
         return self.df
 
     def drop_first_incomplete_month(self) -> pd.DataFrame:
