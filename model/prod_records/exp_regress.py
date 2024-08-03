@@ -13,11 +13,16 @@ class ExpRegressionModel:
     leg of the well.
     """
 
+    # Results if 0.00000001 BBLs produced (before adjusting for lateral).
+    A_NO_PROD = -18.42068074395236
+    B_NO_PROD = -6.079362394156076e-16
+
     def __init__(
             self,
             a: float = np.nan,
             b: float = np.nan,
             lateral_length_ft: float = None,
+            has_produced: bool = None,
             day_ranges: tuple[int, int] = (0, 1461)):
         """
         We convert the exponential to a linear function:
@@ -40,6 +45,8 @@ class ExpRegressionModel:
          set of monthly production records.)
         :param: lateral_length_ft: The length of the lateral in feet.
          (If not specified here, must specify at ``.train()``.)
+        :param has_produced: Whether the well in question has actually
+         produced.
         :param day_ranges: Limit our review to the selected day ranges.
          Default is ``(0, 1461)`` -- i.e., the first 4 years.
         """
@@ -47,6 +54,7 @@ class ExpRegressionModel:
         self.b = b
         self.day_ranges = day_ranges
         self.lateral_length_ft = lateral_length_ft
+        self.has_produced = has_produced
 
     def train(
             self,
@@ -83,6 +91,19 @@ class ExpRegressionModel:
             self.lateral_length_ft = lateral_length_ft
         if lateral_length_ft is None:
             raise ValueError('Must specify lateral length.')
+
+        necessary_cols = [
+            'bbls_per_prod_day',
+            'bbls_per_calendar_day',
+            'calendar_days',
+        ]
+        for col in necessary_cols:
+            if col not in prod_records.columns:
+                self.a = self.A_NO_PROD / lateral_length_ft
+                self.b = self.B_NO_PROD / lateral_length_ft
+                self.has_produced = False
+                return self.a, self.b
+
         prod_records = prod_records.copy(deep=True)
         # Swap 0's for arbitrarily small values to avoid log issues.
         prod_records['bbls_per_prod_day'] = prod_records['bbls_per_prod_day'].replace(0, 0.0000001)
@@ -90,6 +111,7 @@ class ExpRegressionModel:
         x = prod_records['calendar_days'].cumsum()
         x = x.loc[lambda z: (z >= day_ranges[0]) & (z <= day_ranges[1])]
         y = prod_records['bbls_per_calendar_day'][x.index.values] / lateral_length_ft
+        self.has_produced = sum(prod_records['bbls_per_calendar_day']) > 0
 
         # Weighted to favor larger numbers.
         poly_coefs = np.polyfit(x, np.log(y), 1, w=np.sqrt(y))
