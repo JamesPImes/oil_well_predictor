@@ -25,6 +25,8 @@ __all__ = [
     'cull_by_well_class',
     'default_load_and_cull',
     'cull_by_twprge',
+    'cull_by_min_lateral_length',
+    'cull_by_status',
 ]
 
 dotenv.load_dotenv()
@@ -195,6 +197,16 @@ def cull_by_status(
     """
     return wells.drop(wells[wells[status_col].isin(discard_statuses)].index)
 
+def cull_by_min_lateral_length(wells: pd.DataFrame, min_lateral_length=2000) -> pd.DataFrame:
+    """
+    Cull wells whose lateral does not meet the minimum threshold length.
+    :param wells: A dataframe of the loaded and integrated well data
+     (SHL + BHL).
+    :param min_lateral_length: The minimum lateral length to keep.
+     Defaults to ``2000``.
+    :return: A new dataframe limited to the desired wells.
+    """
+
 
 def default_load_and_cull() -> pd.DataFrame:
     """
@@ -212,4 +224,5 @@ def default_load_and_cull() -> pd.DataFrame:
     wells = cull_by_well_class(wells, keep_well_classes=default_well_classes_to_keep)
     wells = drop_duplicate_api_nums(wells)
     wells = cull_by_status(wells, discard_statuses=['WO'])
+    wells = cull_by_min_lateral_length(wells, min_lateral_length=2000)
     return wells
