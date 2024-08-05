@@ -1,5 +1,5 @@
 from calendar import monthrange
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import cached_property
 
 import pandas as pd
@@ -10,6 +10,8 @@ __all__ = [
     'get_days_in_month',
     'first_day_of_month',
     'last_day_of_month',
+    'get_monthly_dates',
+    'fill_calendar_days'
 ]
 
 
@@ -283,3 +285,31 @@ def find_ranges(nums: list) -> list:
     starts = [n for n in nnums if n - 1 not in nums]
     ends = [n for n in nnums if n + 1 not in nums]
     return [*zip(starts, ends)]
+
+
+def get_monthly_dates(start_date: datetime, days: int = 1460, date_col='First of Month') -> pd.DataFrame:
+    """
+    Get a new dataframe with monthly dates, beginning at the specified
+    ``start_date`` and ending after the specified number of ``days``.
+    The dataframe will also include the number of days in each month.
+    :param start_date: The datetime at which to start monthly dates.
+    :param days: The number of days to stop after.
+    :param date_col: The name of the column to put dates in.
+    :return: A dataframe with monthly dates and number of days in each.
+    """
+    df = pd.DataFrame()
+    end_date = start_date + timedelta(days=days)
+    df[date_col] = pd.date_range(start_date, end_date, freq='MS')
+    df = fill_calendar_days(df, date_col)
+    return df
+
+
+def fill_calendar_days(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
+    """
+    Create and fill a ``'calendar_days'`` column in a dataframe.
+    :param df: A dataframe with monthly dates.
+    :param date_col: The name of the column that contains dates.
+    :return: The same dataframe, with ``'calendar_days'`` filled.
+    """
+    df['calendar_days'] = df[date_col].apply(get_days_in_month)
+    return df
