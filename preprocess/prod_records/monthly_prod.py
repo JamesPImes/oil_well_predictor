@@ -51,8 +51,8 @@ class ProductionPreprocessor:
         self.drop_leading_nonproducing_months()
         self.drop_first_incomplete_month()
         self.clean_formation()
-        self.identify_formations()
         self.recategorize_not_completed()
+        self.identify_formations()
         self.zero_out_negatives()
         self.fill_prod_per_day()
         return self.df
@@ -169,7 +169,10 @@ class ProductionPreprocessor:
         them.
         :return: A list of unique formations.
         """
-        formations = list(self.df[self.formation_col].unique())
+        formations = [
+            fm for fm in self.df[self.formation_col].unique()
+            if not pd.isna(fm)
+        ]
         self.formations = formations
         return formations
 
@@ -234,7 +237,7 @@ class ProductionPreprocessor:
         # Sort by formation and date_col and reset indexes, so that we can
         # find start/end points (indexes) of periods of zero production.
         df = df.sort_values(by=[self.formation_col, self.date_col], ascending=True)
-        df = df.reset_index()
+        df = df.reset_index(drop=True)
         fmn_col = self.formation_col
         formations = df[fmn_col].unique()
         for fmn in formations:
