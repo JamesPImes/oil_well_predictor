@@ -5,6 +5,11 @@ from preprocess.shl_bhl.lat_long import (
     calc_lateral_distance,
 )
 
+__all__ = [
+    'find_k_nearest',
+    'idw_weighting',
+]
+
 
 def find_k_nearest(
         wells: pd.DataFrame,
@@ -39,3 +44,24 @@ def find_k_nearest(
         api: dist for api, dist in zip(top_k['API_Label'], top_k['distance_from_target'])
     }
     return distances
+
+
+def idw_weighting(distances: dict, power: int = 2) -> dict:
+    """
+    Calculate inverse distance weighting (IDW) from Euclidean distances.
+    Skew the weighting in favor of closer points by increasing ``power``
+    (2 by default).
+
+    Note: The weights are normalized to total 1.
+
+    :param distances: A dict of ``{key: Euclidean distance}``. (Keys
+     will be maintained in the returned dict.)
+    :param power: Power parameter in the IDW weighting function. Higher
+     values give higher weight to closer points. Default is 2.
+    :return: A dict of ``{key: weight}``, where keys are the same as in
+     the original dict.
+    """
+    idw = {k: (1 / v)**power for k, v in distances.items()}
+    sum_weights = sum(idw.values())
+    norm_weights = {k: (v / sum_weights) for k, v in idw.items()}
+    return norm_weights
