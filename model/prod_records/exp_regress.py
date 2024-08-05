@@ -155,7 +155,7 @@ class ExpRegressionModel:
             weights = [1 / n] * n
         if len(weights) != n:
             raise ValueError('`models` and `weights` must have the same length')
-        if sum(weights) != 1.0:
+        if round(sum(weights), 8) != 1.0:
             raise ValueError('Sum of `weights` must equal 1.0')
         a = 0.0
         b = 0.0
@@ -179,3 +179,27 @@ class ExpRegressionModel:
         if len(bbls_per_day) != len(days_per_month):
             raise IndexError("Length of `bbls_per_day` and `days_per_month` must be equal.")
         return [bbls * days for bbls, days in zip(bbls_per_day, days_per_month)]
+
+
+def dataframe_to_models(df: pd.DataFrame, api_nums: list[str] = None) -> dict[str, ExpRegressionModel]:
+    """
+    Load models from a dataframe of already-trained models. Optionally
+    limit the results to the desired wells by passing a list of API
+    numbers as ``api_nums``.
+    :param df: A dataframe of already-trained models.
+    :param api_nums: (Optional) A list of API numbers, represented as
+     strings.
+    :return: A dict of ``{API number: ExpRegressionModel}``.
+    """
+    if api_nums is None:
+        api_nums = df['API_Label']
+    models = {}
+    for api_num in api_nums:
+        row = df[df['API_Label'] == api_num]
+        a = row['a'].values[0]
+        b = row['b'].values[0]
+        has_produced = row['has_produced'].values[0]
+        lat_len = row['lateral_length_ft'].values[0]
+        model = ExpRegressionModel(a=a, b=b, has_produced=has_produced, lateral_length_ft=lat_len)
+        models[api_num] = model
+    return models
