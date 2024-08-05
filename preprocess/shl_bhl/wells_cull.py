@@ -179,6 +179,23 @@ def cull_by_twprge(wells: pd.DataFrame, keep_twprge: list[str]) -> pd.DataFrame:
     return wells.drop(wells[~wells['twprge'].isin(keep_twprge)].index)
 
 
+def cull_by_status(
+        wells: pd.DataFrame,
+        discard_statuses: list[str] = None,
+        status_col: str = 'Facil_Stat'
+) -> pd.DataFrame:
+    """
+    Cull wells by their status.
+    :param wells: A dataframe of the loaded and integrated well data
+     (SHL + BHL).
+    :param discard_statuses: List of status codes to get rid of -- e.g.,
+     ``['WO']`` (for 'Waiting on Completion').
+    :param status_col: Name of the column containing well status.
+    :return: A new dataframe limited to the desired wells.
+    """
+    return wells.drop(wells[wells[status_col].isin(discard_statuses)].index)
+
+
 def default_load_and_cull() -> pd.DataFrame:
     """
     Load and cull wells with configured defaults.
@@ -194,4 +211,5 @@ def default_load_and_cull() -> pd.DataFrame:
         drop_missing=True)
     wells = cull_by_well_class(wells, keep_well_classes=default_well_classes_to_keep)
     wells = drop_duplicate_api_nums(wells)
+    wells = cull_by_status(wells, discard_statuses=['WO'])
     return wells
