@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 
+from utils import get_prod_window
+
 __all__ = [
     'ExpRegressionModel',
 ]
@@ -22,8 +24,13 @@ class ExpRegressionModel:
             a: float = np.nan,
             b: float = np.nan,
             lateral_length_ft: float = None,
+            sufficient_data: bool = None,
             has_produced: bool = None,
-            day_ranges: tuple[int, int] = (0, 1461)):
+            min_months: int = 36,
+            max_months: int = 48,
+            discard_gaps: bool = True,
+            actual_months: int = None,
+    ):
         """
         We convert the exponential to a linear function:
 
@@ -45,27 +52,46 @@ class ExpRegressionModel:
          set of monthly production records.)
         :param: lateral_length_ft: The length of the lateral in feet.
          (If not specified here, must specify at ``.train()``.)
+        :param sufficient_data: Whether the production records contained
+         enough data for training (default min threshold is 36 months).
         :param has_produced: Whether the well in question has actually
          produced.
-        :param day_ranges: Limit our review to the selected day ranges.
-         Default is ``(0, 1461)`` -- i.e., the first 4 years.
+        :param min_months: Minimum number of months of production to
+         require for training. Defaults to 36. (Note: If
+          ``discard_gaps`` is used, will require this many months of
+          actual production.)
+        :param max_months: Maximum number of months of production to
+         consider for training.
+        :param actual_months: The number of months that were actually
+         used for training. (Only use this parameter when loading a
+         pre-trained model.)
         """
         self.a = a
         self.b = b
-        self.day_ranges = day_ranges
+        self.min_months = min_months
+        self.max_months = max_months
+        self.discard_gaps = discard_gaps
         self.lateral_length_ft = lateral_length_ft
         self.has_produced = has_produced
+        self.sufficient_data = sufficient_data
+        self.actual_months = actual_months
 
     def train(
             self,
             prod_records: pd.DataFrame,
             lateral_length_ft: float = None,
-            day_ranges: tuple[int, int] = None,
+            min_months: int = 36,
+            max_months: int = 48,
+            discard_gaps: bool = True,
+            weight_function: callable = None,
     ) -> (float, float):
         """
         Run a weighted exponential regression on monthly production
-        records, limited to the specified ``day_ranges`` (defaults to
-        the first 1461, i.e., the first 4 years).
+        records. Will use at least ``min_months`` and up to
+        ``max_months``, if available.  If sufficient months of
+        production are found in the provided records, will store
+        ``.sufficient_records`` attribute as ``True``. Otherwise, will
+        store ``False``.
 
         Resulting coefficients ``a`` and ``b`` are stored as attributes.
         Later, generate predictions from this regression with
@@ -78,43 +104,44 @@ class ExpRegressionModel:
          init. If not specified there either, will raise a
          ``ValueError``. (If specified as this parameter, will also
          store to ``.lateral_length_ft`` attribute.)
-        :param day_ranges: Limit our review to the selected day ranges.
-         Default is ``(0, 1461)`` -- i.e., the first 4 years.
-        :return: None
+        :param min_months: The fewest number of months of production to
+         accept. If there are not enough, this will return ``None``.
+        :param max_months: The max number of months of production to
+         include.
+        :param discard_gaps: Whether to discard or keep months during
+         which no production occurred. Defaults to ``True`` (i.e.,
+         discard).
+        :param weight_function: (Optional) A function to apply to the
+         monthly production values to determine their weighting in the
+         exponential regression.
+        :return: The ``a`` and ``b`` values to be used in the
+         ``.predict...()`` method, which are also stored as attributes.
         """
-        # TODO: Limit to specific formation.
-        if day_ranges is None:
-            day_ranges = self.day_ranges
         if lateral_length_ft is None:
             lateral_length_ft = self.lateral_length_ft
         else:
             self.lateral_length_ft = lateral_length_ft
         if lateral_length_ft is None:
             raise ValueError('Must specify lateral length.')
-
-        necessary_cols = [
-            'bbls_per_prod_day',
-            'bbls_per_calendar_day',
-            'calendar_days',
-        ]
-        for col in necessary_cols:
-            if col not in prod_records.columns:
-                self.a = self.A_NO_PROD / lateral_length_ft
-                self.b = self.B_NO_PROD / lateral_length_ft
-                self.has_produced = False
-                return self.a, self.b
-
-        prod_records = prod_records.copy(deep=True)
-        # Swap 0's for arbitrarily small values to avoid log issues.
-        prod_records['bbls_per_prod_day'] = prod_records['bbls_per_prod_day'].replace(0, 0.0000001)
-        prod_records['bbls_per_calendar_day'] = prod_records['bbls_per_calendar_day'].replace(0, 0.0000001)
-        x = prod_records['calendar_days'].cumsum()
-        x = x.loc[lambda z: (z >= day_ranges[0]) & (z <= day_ranges[1])]
-        y = prod_records['bbls_per_calendar_day'][x.index.values] / lateral_length_ft
         self.has_produced = sum(prod_records['bbls_per_calendar_day']) > 0
+        self.sufficient_data = True
+        selected = get_prod_window(prod_records, min_months, max_months, discard_gaps)
+        if selected is None:
+            # Not enough data.
+            self.sufficient_data = False
+            return None
 
-        # Weighted to favor larger numbers.
-        poly_coefs = np.polyfit(x, np.log(y), 1, w=np.sqrt(y))
+        # Swap 0's for arbitrarily small values to avoid log issues.
+        selected['bbls_per_prod_day'] = selected['bbls_per_prod_day'].replace(0, 0.0000001)
+        selected['bbls_per_calendar_day'] = selected['bbls_per_calendar_day'].replace(0, 0.0000001)
+        x = selected['calendar_days'].cumsum()
+        y = selected['bbls_per_calendar_day'][x.index.values] / lateral_length_ft
+        self.actual_months = len(x)
+
+        weights = None
+        if weight_function is not None:
+            weights = weight_function(y)
+        poly_coefs = np.polynomial.Polynomial.fit(x, np.log(y), 1, w=weights)
         self.b, self.a = poly_coefs
         return self.a, self.b
 
