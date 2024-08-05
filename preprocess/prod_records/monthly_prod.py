@@ -41,6 +41,7 @@ class ProductionPreprocessor:
         self.prod_cols = [
             self.bbls_col,
         ]
+        self.formations = []
 
     def preprocess_all(self) -> pd.DataFrame:
         self.fill_missing_months()
@@ -50,6 +51,7 @@ class ProductionPreprocessor:
         self.drop_leading_nonproducing_months()
         self.drop_first_incomplete_month()
         self.clean_formation()
+        self.identify_formations()
         self.recategorize_not_completed()
         self.zero_out_negatives()
         self.fill_prod_per_day()
@@ -159,6 +161,17 @@ class ProductionPreprocessor:
             formation = meaningful_formations.pop()
             self.df[self.formation_col] = self.df[self.formation_col].replace(nc_formations, formation)
         return self.df
+
+    def identify_formations(self) -> list[str]:
+        """
+        Identify the unique formations that appear in the production
+        records. Store them to ``.formations`` attribute and return
+        them.
+        :return: A list of unique formations.
+        """
+        formations = list(self.df[self.formation_col].unique())
+        self.formations = formations
+        return formations
 
     def zero_out_negatives(self) -> pd.DataFrame:
         """
