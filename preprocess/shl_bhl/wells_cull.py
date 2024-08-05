@@ -197,6 +197,7 @@ def cull_by_status(
     """
     return wells.drop(wells[wells[status_col].isin(discard_statuses)].index)
 
+
 def cull_by_min_lateral_length(wells: pd.DataFrame, min_lateral_length=2000) -> pd.DataFrame:
     """
     Cull wells whose lateral does not meet the minimum threshold length.
@@ -206,6 +207,7 @@ def cull_by_min_lateral_length(wells: pd.DataFrame, min_lateral_length=2000) -> 
      Defaults to ``2000``.
     :return: A new dataframe limited to the desired wells.
     """
+    return wells.drop(wells[wells['lateral_length_ft'] < min_lateral_length].index)
 
 
 def default_load_and_cull() -> pd.DataFrame:
