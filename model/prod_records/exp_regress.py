@@ -146,7 +146,7 @@ class ExpRegressionModel:
             weight_function = self.weight_function
         if weight_function is not None:
             weights = weight_function(y)
-        poly_coefs = np.polynomial.Polynomial.fit(x, np.log(y), 1, w=weights)
+        poly_coefs = np.polyfit(x, np.log(y), 1, w=weights)
         self.b, self.a = poly_coefs
         return self.a, self.b
 
