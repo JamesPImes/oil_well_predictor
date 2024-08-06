@@ -1,6 +1,6 @@
 """
 A script to train all exponential regression models configured in
-`model_parameters.json`.
+`exp_regress_model_parameters.json`.
 """
 
 import os
