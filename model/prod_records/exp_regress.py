@@ -5,6 +5,7 @@ from utils import get_prod_window
 
 __all__ = [
     'ExpRegressionModel',
+    'dataframe_to_models',
 ]
 
 
