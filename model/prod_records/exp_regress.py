@@ -16,10 +16,6 @@ class ExpRegressionModel:
     leg of the well.
     """
 
-    # Results if 0.00000001 BBLs produced (before adjusting for lateral).
-    A_NO_PROD = -18.42068074395236
-    B_NO_PROD = -6.079362394156076e-16
-
     def __init__(
             self,
             a: float = np.nan,
@@ -31,7 +27,7 @@ class ExpRegressionModel:
             max_months: int = 48,
             discard_gaps: bool = True,
             actual_months: int = None,
-            weight_function: callable = None,
+            weight_power: float = None,
     ):
         """
         We convert the exponential to a linear function:
@@ -67,6 +63,9 @@ class ExpRegressionModel:
         :param actual_months: The number of months that were actually
          used for training. (Only use this parameter when loading a
          pre-trained model.)
+        :param weight_power: (Optional) An inverse power (e.g., 0.125,
+         0.25, etc.) to apply to the monthly production values in order
+         to calculate the weighting for the exponential regression.
         """
         self.a = a
         self.b = b
@@ -77,7 +76,7 @@ class ExpRegressionModel:
         self.has_produced = has_produced
         self.sufficient_data = sufficient_data
         self.actual_months = actual_months
-        self.weight_function = weight_function
+        self.weight_power = weight_power
 
     def train(
             self,
@@ -86,7 +85,7 @@ class ExpRegressionModel:
             min_months: int = 36,
             max_months: int = 48,
             discard_gaps: bool = True,
-            weight_function: callable = None,
+            weight_power: float = None,
     ) -> (float, float):
         """
         Run a weighted exponential regression on monthly production
@@ -114,9 +113,9 @@ class ExpRegressionModel:
         :param discard_gaps: Whether to discard or keep months during
          which no production occurred. Defaults to ``True`` (i.e.,
          discard).
-        :param weight_function: (Optional) A function to apply to the
-         monthly production values to determine their weighting in the
-         exponential regression.
+        :param weight_power: (Optional) An inverse power (e.g., 0.125,
+         0.25, etc.) to apply to the monthly production values in order
+         to calculate the weighting for the exponential regression.
         :return: The ``a`` and ``b`` values to be used in the
          ``.predict...()`` method, which are also stored as attributes.
         """
@@ -142,10 +141,10 @@ class ExpRegressionModel:
         self.actual_months = len(x)
 
         weights = None
-        if weight_function is None:
-            weight_function = self.weight_function
-        if weight_function is not None:
-            weights = weight_function(y)
+        if weight_power is None:
+            weight_power = self.weight_power
+        if weight_power is not None:
+            weights = y ** weight_power
         poly_coefs = np.polyfit(x, np.log(y), 1, w=weights)
         self.b, self.a = poly_coefs
         return self.a, self.b

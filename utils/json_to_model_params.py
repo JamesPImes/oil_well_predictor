@@ -11,15 +11,9 @@ def json_to_exp_regress_params(fp):
         model_params = json.load(json_file)
     kwarg_sets = {}  # For use of params as kwargs.
     for param_set in model_params:
-        model_name = param_set['model_name']
-        # Convert raw params to kwargs for ExpRegressionModel init
-        exp_params = {
-            'min_months': param_set['min_months'],
-            'max_months': param_set['max_months'],
-            'discard_gaps': param_set['discard_gaps'],
-            'weight_function': lambda v: v ** param_set['weight_power'],
-        }
-        kwarg_sets[model_name] = exp_params
+        # key: 'model_name'
+        # other params: ['min_months', 'max_months',  'discard_gaps', 'weight_power']
+        kwarg_sets[param_set.pop('model_name')] = param_set
     return kwarg_sets
 
 
