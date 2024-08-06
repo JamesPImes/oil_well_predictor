@@ -30,6 +30,7 @@ class ExpRegressionModel:
             max_months: int = 48,
             discard_gaps: bool = True,
             actual_months: int = None,
+            weight_function: callable = None,
     ):
         """
         We convert the exponential to a linear function:
@@ -75,6 +76,7 @@ class ExpRegressionModel:
         self.has_produced = has_produced
         self.sufficient_data = sufficient_data
         self.actual_months = actual_months
+        self.weight_function = weight_function
 
     def train(
             self,
@@ -123,7 +125,7 @@ class ExpRegressionModel:
             self.lateral_length_ft = lateral_length_ft
         if lateral_length_ft is None:
             raise ValueError('Must specify lateral length.')
-        self.has_produced = sum(prod_records['bbls_per_calendar_day']) > 0
+        self.has_produced = sum(prod_records['Oil Produced']) > 0
         self.sufficient_data = True
         selected = get_prod_window(prod_records, min_months, max_months, discard_gaps)
         if selected is None:
@@ -139,6 +141,8 @@ class ExpRegressionModel:
         self.actual_months = len(x)
 
         weights = None
+        if weight_function is None:
+            weight_function = self.weight_function
         if weight_function is not None:
             weights = weight_function(y)
         poly_coefs = np.polynomial.Polynomial.fit(x, np.log(y), 1, w=weights)
