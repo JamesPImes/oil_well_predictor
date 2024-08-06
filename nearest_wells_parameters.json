@@ -1,0 +1,47 @@
+[
+  {
+    "model_name": "k3d2",
+    "k": 3,
+    "distance_weighting": 2
+  },
+  {
+    "model_name": "k3d3",
+    "k": 3,
+    "distance_weighting": 3
+  },
+  {
+    "model_name": "k3d5",
+    "k": 3,
+    "distance_weighting": 5
+  },
+  {
+    "model_name": "k5d2",
+    "k": 5,
+    "distance_weighting": 2
+  },
+  {
+    "model_name": "k5d3",
+    "k": 5,
+    "distance_weighting": 3
+  },
+  {
+    "model_name": "k5d5",
+    "k": 5,
+    "distance_weighting": 5
+  },
+  {
+    "model_name": "k10d2",
+    "k": 10,
+    "distance_weighting": 2
+  },
+  {
+    "model_name": "k10d3",
+    "k": 10,
+    "distance_weighting": 3
+  },
+  {
+    "model_name": "k10d5",
+    "k": 10,
+    "distance_weighting": 5
+  }
+]
