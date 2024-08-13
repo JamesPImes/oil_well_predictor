@@ -29,6 +29,7 @@ if __name__ == '__main__':
             f"Expected at: {str(WELL_DATA_FP)!r}"
         )
     wells = pd.read_csv(WELL_DATA_FP, parse_dates=['Spud_Date', 'Stat_Date'])
+    wells = wells.dropna(subset=['lateral_length_ft'])
     MODEL_DIR.mkdir(exist_ok=True)
     # Load model parameters.
     exp_regress_params = json_to_exp_regress_params('exp_regress_model_parameters.json')
@@ -88,6 +89,8 @@ if __name__ == '__main__':
     for model_name, results in trained.items():
         print(f"Saving model {model_name!r}...")
         model_df = pd.DataFrame(data=results)
+        if len(model_df) == 0:
+            continue
         out_fp_model = MODEL_DIR / MODEL_TEMPLATE.format(model_name=model_name)
         model_df.to_csv(out_fp_model, index=False)
     print("Done.")
