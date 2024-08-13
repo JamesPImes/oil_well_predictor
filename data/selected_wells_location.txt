@@ -1,0 +1,12 @@
+This is a combination of SHL (location, or "surface hole location") and
+BHL ("bottom hole location") data, pulled from the ECMC's 'Downloads' page.
+
+Data sources:
+SHL data:  https://ecmc.state.co.us/documents/data/downloads/gis/WELLS_SHP.ZIP
+(Extract ``Wells.dbf`` and save it as a ``.csv``.)
+
+BHL data:  https://ecmc.state.co.us/documents/data/downloads/gis/DIRECTIONAL_BOTTOMHOLE_LOCATIONS_SHP.ZIP
+(Extract ``Directional_Bottomhole_Locations.dbf`` and save it as a ``.csv``.)
+
+
+It also incorporates the lateral length data from lateral_length_summaries.csv.

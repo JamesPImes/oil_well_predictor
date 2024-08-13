@@ -1,0 +1,10 @@
+Lateral length (ft), scraped and calculated from "scout cards" of wells,
+accessed from the ECMC's website.
+
+Interval Top: xxxx ft.
+Interval Bottom: xxxx ft.
+Measured TD: xxxx ft. (total depth)
+
+Lateral length is [interval bottom] - [interval top], if both are available.
+Measured TD is used in place of interval bottom where the bottom is not
+specified in the scout card.

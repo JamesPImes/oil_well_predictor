@@ -1,0 +1,20 @@
+Data has been scraped or downloaded from various parts of Colorado's Energy & Carbon Management Commission ("ECMC") website: <https://ecmc.state.co.us>.
+
+The ECMC oversees regulation of oil and gas operations in the State of
+Colorado and provides data for free to the public.
+
+Specifically, records have been pulled for some wells in Weld County, further
+limited to the following contiguous townships (roughly 324 square miles):
+ * T7N-R59W
+ * T7N-R60W
+ * T8N-R59W
+ * T8N-R60W
+ * T9N-R58W
+ * T9N-R59W
+ * T9N-R60W
+ * T10N-R57W
+ * T10N-R58W
+
+These townships were selected because they have been densely drilled with
+horizontal wells, the vast majority of which are drilled in the Niobrara
+formation.

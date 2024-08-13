@@ -1,0 +1,5 @@
+Scraped HTML from ECMC's "scout ticket" for each well.
+
+URL: https://ecmc.state.co.us/cogisdb/Facility/FacilityDetail?api=xxxyyyyy
+
+('xxxyyyyy' corresponds to the "API" number for the well: 05-xxx-yyyyy)
