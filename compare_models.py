@@ -25,7 +25,9 @@ PRODUCTION_RECORDS_DIR = Path(os.getenv('PRODUCTION_RECORDS_DIR'))
 PRODUCTION_CSV_TEMPLATE = "{api_num}_production_data.csv"
 
 if __name__ == '__main__':
+    existing_comparisons = [fn for fn in os.listdir(COMPARISON_RESULTS_DIR) if fn.endswith('.csv')]
     wells = pd.read_csv(WELL_DATA_FP, parse_dates=['Spud_Date', 'Stat_Date'])
+    wells = wells.dropna(subset=['lateral_length_ft'])
 
     # Load pre-trained exponential regression models for each well.
     expreg_models_all = {}
@@ -78,6 +80,8 @@ if __name__ == '__main__':
             actual_prod = prepro.preprocess_all()
 
             for expreg_model_name, expreg_model in expreg_models_all.items():
+                if f"{near_well_model_name}__{expreg_model_name}.csv" in existing_comparisons:
+                    continue
                 print(",", expreg_model_name, end="")
                 # Use the original params to ensure we compare apples-to-apples
                 # (i.e., use the same actual production window as was used to train).
