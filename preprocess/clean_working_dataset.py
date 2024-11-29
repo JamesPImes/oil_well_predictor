@@ -3,11 +3,11 @@ from pathlib import Path
 
 import dotenv
 
-from shl_bhl.lat_long import (
+from .shl_bhl.lat_long import (
     fill_lat_long_midpoints,
     fill_lateral_distances,
 )
-from shl_bhl.wells_cull import (
+from .shl_bhl.wells_cull import (
     default_load_and_cull,
     cull_by_twprge,
 )
