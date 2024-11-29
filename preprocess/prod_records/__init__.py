@@ -1,2 +1,2 @@
 
-from monthly_prod import *
+from .monthly_prod import *

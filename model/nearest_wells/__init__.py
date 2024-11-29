@@ -1,2 +1,2 @@
 
-from nearest_wells import *
+from .nearest_wells import *

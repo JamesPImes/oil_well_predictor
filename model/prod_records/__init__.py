@@ -1,2 +1,2 @@
 
-from exp_regress import *
+from .exp_regress import *
