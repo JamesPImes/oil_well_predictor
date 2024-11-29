@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from datetime import datetime
 
 import dotenv
 import pandas as pd
@@ -25,9 +26,13 @@ PRODUCTION_RECORDS_DIR = Path(os.getenv('PRODUCTION_RECORDS_DIR'))
 PRODUCTION_CSV_TEMPLATE = "{api_num}_production_data.csv"
 
 if __name__ == '__main__':
+    start_time = datetime.now()
     existing_comparisons = [fn for fn in os.listdir(COMPARISON_RESULTS_DIR) if fn.endswith('.csv')]
     wells = pd.read_csv(WELL_DATA_FP, parse_dates=['Spud_Date', 'Stat_Date'])
     wells = wells.dropna(subset=['lateral_length_ft'])
+    # 80/20 split between training / test data.
+    test_wells = wells.sample(frac=0.2)
+    training_wells = wells.drop(test_wells.index)
 
     # Load pre-trained exponential regression models for each well.
     expreg_models_all = {}
@@ -51,14 +56,15 @@ if __name__ == '__main__':
         k = param_set['k']
         distance_weighting = param_set['distance_weighting']
         i = 0
-        n = len(wells)
-        for _, row in wells.iterrows():
+        n = len(test_wells)
+        for _, row in test_wells.iterrows():
+            row_timestamp = datetime.now()
             i += 1
             api_num = row['API_Label']
             lat_len = row['lateral_length_ft']
             print(f"{near_well_model_name} [{i}/{n}] -- {api_num}", end=" ")
             nearest = find_k_nearest(
-                wells,
+                training_wells,
                 target_shl=(row['lat_shl'], row['long_shl']),
                 target_bhl=(row['lat_bhl'], row['long_bhl']),
                 # k+1 because we expect to capture the well itself, if
@@ -99,7 +105,8 @@ if __name__ == '__main__':
                         'months': None,
                         'predicted': "insufficient data",
                         'actual': "insufficient data",
-                        'predicted/actual': None
+                        'predicted/actual': None,
+                        'prediction_time_cost_sec': (row_timestamp - datetime.now()).microseconds / 1_000_000
                     }
                     results[(near_well_model_name, expreg_model_name)].append(result)
                     continue
@@ -126,7 +133,8 @@ if __name__ == '__main__':
                     'months': len(selected_prod_records),
                     'predicted': predicted_total,
                     'actual': actual_total,
-                    'predicted/actual': predicted_total / actual_total
+                    'predicted/actual': predicted_total / actual_total,
+                    'prediction_time_cost_sec': (row_timestamp - datetime.now()).microseconds / 1_000_000
                 }
                 results[(near_well_model_name, expreg_model_name)].append(result)
             print("")
