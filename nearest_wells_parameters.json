@@ -1,5 +1,10 @@
 [
   {
+    "model_name": "k3d1",
+    "k": 3,
+    "distance_weighting": 1
+  },
+  {
     "model_name": "k3d2",
     "k": 3,
     "distance_weighting": 2
@@ -10,9 +15,9 @@
     "distance_weighting": 3
   },
   {
-    "model_name": "k3d5",
-    "k": 3,
-    "distance_weighting": 5
+    "model_name": "k5d1",
+    "k": 5,
+    "distance_weighting": 1
   },
   {
     "model_name": "k5d2",
@@ -25,9 +30,24 @@
     "distance_weighting": 3
   },
   {
-    "model_name": "k5d5",
-    "k": 5,
-    "distance_weighting": 5
+    "model_name": "k7d1",
+    "k": 7,
+    "distance_weighting": 1
+  },
+  {
+    "model_name": "k7d2",
+    "k": 7,
+    "distance_weighting": 2
+  },
+  {
+    "model_name": "k7d3",
+    "k": 7,
+    "distance_weighting": 3
+  },
+  {
+    "model_name": "k10d1",
+    "k": 10,
+    "distance_weighting": 1
   },
   {
     "model_name": "k10d2",
@@ -38,10 +58,5 @@
     "model_name": "k10d3",
     "k": 10,
     "distance_weighting": 3
-  },
-  {
-    "model_name": "k10d5",
-    "k": 10,
-    "distance_weighting": 5
   }
 ]
