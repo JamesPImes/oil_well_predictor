@@ -103,10 +103,16 @@ if __name__ == '__main__':
                     result = {
                         'API_Label': api_num,
                         'months': None,
-                        'predicted': "insufficient data",
-                        'actual': "insufficient data",
+                        'predicted': None,
+                        'actual': None,
+                        'abs_error': None,
+                        'rel_error': None,
                         'predicted/actual': None,
-                        'prediction_time_cost_sec': (row_timestamp - datetime.now()).microseconds / 1_000_000
+                        'prediction_time_cost_sec': (row_timestamp - datetime.now()).microseconds / 1_000_000,
+                        'component_models': None,
+                        'a': None,
+                        'b': None,
+                        'comment': "insufficient data"
                     }
                     results[(near_well_model_name, expreg_model_name)].append(result)
                     continue
@@ -120,8 +126,8 @@ if __name__ == '__main__':
                 nearby_expreg_models = [expreg_model[nearby_api_num] for nearby_api_num in nearest.keys()]
                 for m in nearby_expreg_models:
                     pred = m.predict_bbls_per_calendar_day(source_cumulative_days, lateral_length_ft=lat_len)
-                distances = list(nearest.values())
                 weights = idw_weighting(distances=nearest, power=param_set['distance_weighting'])
+                component_models = [f"{api}<dist_{nearest[api]};wt_{weights[api]}>" for api in nearest.keys()]
                 target_model = ExpRegressionModel.weight_models(nearby_expreg_models, weights.values())
                 pred_cumulative_days = pd.Series(range(1, sum(monthly_days) + 1))
                 predicted_bbls_each_day = target_model.predict_bbls_per_calendar_day(
@@ -133,13 +139,19 @@ if __name__ == '__main__':
                     'months': len(selected_prod_records),
                     'predicted': predicted_total,
                     'actual': actual_total,
+                    'abs_error': abs(actual_total - predicted_total),
+                    'rel_error': abs(actual_total - predicted_total) / actual_total,
                     'predicted/actual': predicted_total / actual_total,
-                    'prediction_time_cost_sec': (row_timestamp - datetime.now()).microseconds / 1_000_000
+                    'prediction_time_cost_sec': (row_timestamp - datetime.now()).microseconds / 1_000_000,
+                    'component_models': '|'.join(component_models),
+                    'a': target_model.a,
+                    'b': target_model.b,
+                    'comment': None,
                 }
                 results[(near_well_model_name, expreg_model_name)].append(result)
             print("")
 
-        # Output our results.
+        # Output each model's results to its own table.
         for model_pair, result in results.items():
             if model_pair[0] != near_well_model_name:
                 # Write as we go.
