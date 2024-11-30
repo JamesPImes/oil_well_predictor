@@ -155,21 +155,24 @@ class ModelComparer:
                             'component_models': None,
                             'a': None,
                             'b': None,
-                            'secondary_prediction': None,
+                            # 'predicted2': pred_total_by_individual,
+                            # 'abs_error2': abs(actual_total - pred_total_by_individual),
+                            # 'rel_error2': abs(actual_total - pred_total_by_individual) / actual_total,
                             'comment': "insufficient data"
                         }
                         self.results[(near_well_model_name, expreg_model_name)].append(result)
                         continue
 
                     monthly_days = selected_prod_records['calendar_days']
-                    source_cumulative_days = monthly_days.cumsum()
-
                     # Grab the production models from the k-nearest wells and compute
                     # the weighting for each to create a weighted model for our target
                     # well.
                     nearby_expreg_models = [expreg_model[nearby_api_num] for nearby_api_num in nearest.keys()]
                     weights = idw_weighting(distances=nearest, power=param_set['distance_weighting'])
-                    component_models = [f"{api}<dist_{nearest[api]};wt_{weights[api]}>" for api in nearest.keys()]
+                    component_models = [
+                        f"{api}<dist_{nearest[api]};wt_{weights[api]};a_{mdl.a};b_{mdl.b}>"
+                        for api, mdl in zip(nearest.keys(), nearby_expreg_models)
+                    ]
                     target_model = ExpRegressionModel.weight_models(nearby_expreg_models, weights.values())
                     pred_cumulative_days = pd.Series(range(1, sum(monthly_days) + 1))
                     predicted_bbls_each_day = target_model.predict_bbls_per_calendar_day(
@@ -177,12 +180,12 @@ class ModelComparer:
                     predicted_total = sum(predicted_bbls_each_day)
                     actual_total = sum(selected_prod_records['Oil Produced'])
 
-                    # For additional prediction and comparison, calculate each component
-                    # exp. regression model's own prediction for this timeframe.
-                    pred_total_by_individual = 0
-                    for m, wt in zip(nearby_expreg_models, weights.values()):
-                        pred = m.predict_bbls_per_calendar_day(pred_cumulative_days, lateral_length_ft=lat_len)
-                        pred_total_by_individual += sum(pred) * wt
+                    # # For additional prediction and comparison, calculate each component
+                    # # exp. regression model's own prediction for this timeframe.
+                    # pred_total_by_individual = 0
+                    # for m, wt in zip(nearby_expreg_models, weights.values()):
+                    #     pred = m.predict_bbls_per_calendar_day(pred_cumulative_days, lateral_length_ft=lat_len)
+                    #     pred_total_by_individual += sum(pred) * wt
 
                     result = {
                         'API_Label': api_num,
@@ -196,9 +199,9 @@ class ModelComparer:
                         'component_models': '|'.join(component_models),
                         'a': target_model.a,
                         'b': target_model.b,
-                        'predicted2': pred_total_by_individual,
-                        'abs_error2': abs(actual_total - pred_total_by_individual),
-                        'rel_error2': abs(actual_total - pred_total_by_individual) / actual_total,
+                        # 'predicted2': pred_total_by_individual,
+                        # 'abs_error2': abs(actual_total - pred_total_by_individual),
+                        # 'rel_error2': abs(actual_total - pred_total_by_individual) / actual_total,
                         'comment': None,
                     }
                     self.results[(near_well_model_name, expreg_model_name)].append(result)
@@ -231,8 +234,8 @@ class ModelComparer:
                 'avg_sec_per_predict': meaningful_results['prediction_time_cost_sec'].mean(),
                 'mean_abs_error': meaningful_results['abs_error'].mean(),
                 'mean_rel_error': meaningful_results['rel_error'].mean(),
-                'mean_abs_error2': meaningful_results['abs_error2'].mean(),
-                'mean_rel_error2': meaningful_results['rel_error2'].mean(),
+                # 'mean_abs_error2': meaningful_results['abs_error2'].mean(),
+                # 'mean_rel_error2': meaningful_results['rel_error2'].mean(),
                 'total_predicted': len(meaningful_results),
             }
             comparisons.append(comparison_entry)
@@ -244,3 +247,5 @@ if __name__ == '__main__':
     comparer = ModelComparer()
     comparer.split_training_and_test_data()
     comparer.run_all_models()
+    # comparer.load_prior_results()
+    # comparer.gen_comparison_report()
