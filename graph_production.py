@@ -24,20 +24,26 @@ def get_and_prep_production_records(api_num: str) -> pd.DataFrame:
     return get_prod_window(cleaned_prod)
 
 
-def load_exp_regress_models():
-    ...
-
-def graph_production(prod_records, model: ExpRegressionModel, lat_len: float = None):
+def graph_production(prod_records, models: list[ExpRegressionModel], lat_len: float = None, labels: list = None):
     x = prod_records['calendar_days'].cumsum()
     y = prod_records['bbls_per_calendar_day']
     days = pd.Series(range(max(x)))
-    predicted_bbls = model.predict_bbls_per_calendar_day(days, lateral_length_ft=lat_len)
+    predictions = []
+    for model in models:
+        predicted_bbls = model.predict_bbls_per_calendar_day(days, lateral_length_ft=lat_len)
+        predictions.append(predicted_bbls)
     ax = plt.subplot()
     ax.set_title('Daily Production')
     ax.set_xlabel('Days')
     ax.set_ylabel('BBLs')
     ax.plot(x, y, label='Actual')
-    ax.plot(days, predicted_bbls, label='Predicted')
+    if labels is None:
+        if len(models) == 1:
+            labels = [f"Predicted"]
+        else:
+            labels = [f"Predicted({i+1})" for i in range(len(models))]
+    for predicted_bbls, label in zip(predictions, labels):
+        ax.plot(days, predicted_bbls, label=label)
     ax.legend(loc='upper right')
     plt.show()
 
