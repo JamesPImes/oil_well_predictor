@@ -4,6 +4,7 @@ from datetime import datetime
 
 import dotenv
 import pandas as pd
+import numpy as np
 
 from utils import (
     json_to_nearest_wells_params,
@@ -28,7 +29,7 @@ class ModelComparer:
     production_csv_template = "{api_num}_production_data.csv"
     training_test_data_dir = comparison_results_dir / 'testing_and_training_data'
 
-    def __init__(self, test_frac=0.2, random_state=None):
+    def __init__(self):
         self.comparison_results_dir.mkdir(exist_ok=True)
         self.training_test_data_dir.mkdir(exist_ok=True)
         self.existing_comparisons = [
@@ -77,6 +78,11 @@ class ModelComparer:
             self.expreg_models_all[model_name] = dataframe_to_models(model_df)
         return self.expreg_models_all
 
+    def load_prior_testing_training_data(self):
+        self.test_wells = pd.read_csv(self.training_test_data_dir / 'test_wells.csv', index_col=0)
+        self.training_wells = pd.read_csv(self.training_test_data_dir / 'training_wells.csv', index_col=0)
+        self.wells = pd.read_csv(self.training_test_data_dir / 'all_wells.csv', index_col=0)
+
     def load_prior_results(self):
         """Load prior results (CSV files) into the ``.results`` dict."""
         for fn in os.listdir(self.comparison_results_dir):
@@ -86,9 +92,7 @@ class ModelComparer:
             near_well_model_name, expreg_model_name = model_pair_raw
             results_df = pd.read_csv(self.comparison_results_dir / fn)
             self.results_dfs[(near_well_model_name, expreg_model_name)] = results_df
-        self.test_wells = pd.read_csv(self.training_test_data_dir / 'test_wells.csv', index_col=0)
-        self.train = pd.read_csv(self.training_test_data_dir / 'training_wells.csv', index_col=0)
-        self.wells = pd.read_csv(self.training_test_data_dir / 'all_wells.csv', index_col=0)
+        self.load_prior_testing_training_data()
 
     def results_to_dfs(self) -> dict:
         for model_pair, result in self.results.items():
@@ -155,6 +159,9 @@ class ModelComparer:
                             'component_models': None,
                             'a': None,
                             'b': None,
+                            'mean_dist': None,
+                            'median_dist': None,
+                            'std_dist': None,
                             # 'predicted2': pred_total_by_individual,
                             # 'abs_error2': abs(actual_total - pred_total_by_individual),
                             # 'rel_error2': abs(actual_total - pred_total_by_individual) / actual_total,
@@ -173,6 +180,7 @@ class ModelComparer:
                         f"{api}<dist_{nearest[api]};wt_{weights[api]};a_{mdl.a};b_{mdl.b}>"
                         for api, mdl in zip(nearest.keys(), nearby_expreg_models)
                     ]
+                    distances = list(nearest.values())
                     target_model = ExpRegressionModel.weight_models(nearby_expreg_models, weights.values())
                     pred_cumulative_days = pd.Series(range(1, sum(monthly_days) + 1))
                     predicted_bbls_each_day = target_model.predict_bbls_per_calendar_day(
@@ -199,6 +207,9 @@ class ModelComparer:
                         'component_models': '|'.join(component_models),
                         'a': target_model.a,
                         'b': target_model.b,
+                        'mean_dist': np.mean(distances),
+                        'median_dist': np.median(distances),
+                        'std_dist': np.std(distances),
                         # 'predicted2': pred_total_by_individual,
                         # 'abs_error2': abs(actual_total - pred_total_by_individual),
                         # 'rel_error2': abs(actual_total - pred_total_by_individual) / actual_total,
@@ -220,12 +231,37 @@ class ModelComparer:
         self.gen_comparison_report()
         return None
 
+    @staticmethod
+    def parse_model_components_str(s) -> list[dict]:
+        """
+        Parse the stored model component string into a list of dicts of
+        those model components.
+        """
+        # api_num<dist_FLOAT;wt_FLOAT;a_FLOAT;b_FLOAT>|...
+        model_components = []
+        models_raw = s.split('|')
+        for model_raw in models_raw:
+            # Strip brackets.
+            api_num, etc = model_raw[:-1].split('<')
+            dist_raw, wt_raw, a_raw, b_raw = etc.split(';')
+            model = {
+                'api_num': api_num,
+                'dist': float(dist_raw[5:]),
+                'wt': float(wt_raw[3:]),
+                'a': float(a_raw[2:]),
+                'b': float(b_raw[2:])
+            }
+            model_components.append(model)
+        return model_components
+
     def gen_comparison_report(self):
         comparisons = []
         for model_pair, results_df in self.results_dfs.items():
             near_well_model_name, expreg_model_name = model_pair
             param_set = self.near_wells_params[near_well_model_name]
             meaningful_results = results_df.dropna(subset=['predicted'])
+            mean_error = (meaningful_results['predicted'] - meaningful_results['actual']).mean()
+            mean_actual_bbls = meaningful_results['actual'].mean()
             comparison_entry = {
                 'near_well_model_name': near_well_model_name,
                 'expreg_model_name': expreg_model_name,
@@ -233,7 +269,14 @@ class ModelComparer:
                 'distance_weighting': param_set['distance_weighting'],
                 'avg_sec_per_predict': meaningful_results['prediction_time_cost_sec'].mean(),
                 'mean_abs_error': meaningful_results['abs_error'].mean(),
-                'mean_rel_error': meaningful_results['rel_error'].mean(),
+                'mean_error': mean_error,
+                'mean_abs_pct_error': meaningful_results['rel_error'].mean(),
+                'mean_pct_error': (meaningful_results['predicted/actual'] - 1).mean(),
+                'total_actual_bbls': meaningful_results['actual'].sum(),
+                'total_predicted_bbls': meaningful_results['predicted'].sum(),
+                'mean_actual_bbls': mean_actual_bbls,
+                'mean_predicted_bbls': meaningful_results['predicted'].mean(),
+                'mean_error/mean_actual_bbls': mean_error / mean_actual_bbls,
                 # 'mean_abs_error2': meaningful_results['abs_error2'].mean(),
                 # 'mean_rel_error2': meaningful_results['rel_error2'].mean(),
                 'total_predicted': len(meaningful_results),
@@ -242,10 +285,28 @@ class ModelComparer:
         comparison_df = pd.DataFrame(data=comparisons)
         comparison_df.to_csv('comparison.csv', index=False)
 
+    def fill_distance_calcs(self):
+        for fn in os.listdir(self.comparison_results_dir):
+            fp = self.comparison_results_dir / fn
+            if fp.suffix != '.csv':
+                continue
+            print('Processing...', fn)
+            df = pd.read_csv(fp)
+            mean_dists = []
+            median_dists = []
+            std_dists = []
+            for comp_model_str in df['component_models']:
+                comp_models = self.parse_model_components_str(comp_model_str)
+                dists = [md['dist'] for md in comp_models]
+                mean_dists.append(np.mean(dists))
+                median_dists.append(np.median(dists))
+                std_dists.append(np.std(dists))
+            i = len(df.columns) - 1
+            df.insert(i, 'std_dist', pd.Series(std_dists))
+            df.insert(i, 'median_dist', pd.Series(median_dists))
+            df.insert(i, 'mean_dist', pd.Series(mean_dists))
+            df.to_csv(fp, index=False)
+
 
 if __name__ == '__main__':
-    comparer = ModelComparer()
-    comparer.split_training_and_test_data()
-    comparer.run_all_models()
-    # comparer.load_prior_results()
-    # comparer.gen_comparison_report()
+    ...
