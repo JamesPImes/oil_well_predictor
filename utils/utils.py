@@ -2,6 +2,7 @@ import pandas as pd
 
 __all__ = [
     'get_prod_window',
+    'get_cumulative_days',
 ]
 
 
@@ -43,3 +44,16 @@ def get_prod_window(
     max_idx = min(max_months, len(prod_records))  # 1-indexed
     selected = prod_records.iloc[:max_idx]
     return selected.reset_index(drop=True)
+
+def get_cumulative_days(prod_records: pd.DataFrame) -> pd.Series:
+    """
+    Get the cumulative days from the production records.
+
+    :param prod_records: A fully preprocessed dataframe of monthly
+     production records for one well. (Presumably culled to the target
+     window for training or prediction.)
+    :return: A Series of ``[1, n]``, where ``n`` is the total days
+     represented in the ``prod_records``.
+    """
+    monthly_days = prod_records['calendar_days']
+    return pd.Series(range(1, sum(monthly_days) + 1))
