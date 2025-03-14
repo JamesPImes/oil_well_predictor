@@ -1,6 +1,10 @@
+
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 
+from preprocess.prod_records import ProductionPreprocessor
 from utils import get_prod_window
 
 __all__ = [
@@ -211,6 +215,22 @@ class ExpRegressionModel:
             raise IndexError("Length of `bbls_per_day` and `days_per_month` must be equal.")
         return [bbls * days for bbls, days in zip(bbls_per_day, days_per_month)]
 
+    def to_dict(self):
+        """Export this model to a dict."""
+        export_attributes = (
+            'a',
+            'b',
+            'min_months',
+            'max_months',
+            'discard_gaps',
+            'lateral_length_ft',
+            'has_produced',
+            'sufficient_data',
+            'actual_months',
+        )
+        model_details = {att: getattr(self, att) for att in export_attributes}
+        return model_details
+
 
 def dataframe_to_models(df: pd.DataFrame, api_nums: list[str] = None) -> dict[str, ExpRegressionModel]:
     """
@@ -234,3 +254,56 @@ def dataframe_to_models(df: pd.DataFrame, api_nums: list[str] = None) -> dict[st
         model = ExpRegressionModel(a=a, b=b, has_produced=has_produced, lateral_length_ft=lat_len)
         models[api_num] = model
     return models
+
+
+def train_all_exp_regress(
+        wells: pd.DataFrame,
+        prod_records_dir,
+        prod_csv_template,
+        parse_dates=('First of Month',),
+        output_fp=None,
+        **exp_regress_params,
+) -> pd.DataFrame:
+    """
+    Train an exponential regression model for each of the ``wells``.
+
+    :param wells: A dataframe of well records.
+    :param prod_records_dir: The directory where prod records files are
+     located.
+    :param prod_csv_template: A filename template for CSV prod records.
+     (Should be an f-string with the key word ``{api_num}``.)
+    :param parse_dates: The headers for columns in the .csv files that
+     contain strings that should be converted to dates.
+    :param output_fp: (Optional) If passed, will save the trained models
+     to a csv file at this path.
+    :param exp_regress_params: Keyword arguments that line up with
+     initializing an ``ExpRegressionModel`` instance. (Do not include
+     ``a``, ``b``, or other fields that will be calculated from the
+     training data.
+    :return: A dataframe containing the details for a trained model for
+     each well.
+    """
+    prod_records_dir = Path(prod_records_dir)
+    exp_reg_models = []
+    for _, row in wells.iterrows():
+        api_num = row['API_Label']
+        lat_length = row['lateral_length_ft']
+        prod_fp = prod_records_dir / prod_csv_template.format(api_num=api_num)
+        prod_raw = pd.read_csv(prod_fp, parse_dates=list(parse_dates))
+        preprocessor = ProductionPreprocessor(prod_raw)
+        prod = preprocessor.preprocess_all()
+        formations = sorted(preprocessor.formations)
+
+        model = ExpRegressionModel(lateral_length_ft=lat_length, **exp_regress_params)
+        model.train(prod)
+        results = model.to_dict()
+        # Add some additional info.
+        results['API_Label'] = api_num
+        results['formations'] = '|'.join(formations)
+        exp_reg_models.append(results)
+
+    models_as_df = pd.DataFrame(exp_reg_models)
+    if output_fp is not None:
+        models_as_df.to_csv(output_fp, index=False)
+    return models_as_df
+
