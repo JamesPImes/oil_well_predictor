@@ -1,12 +1,14 @@
 from calendar import monthrange
 from datetime import datetime, timedelta
 from functools import cached_property
+from pathlib import Path
 
 import pandas as pd
 import numpy as np
 
 __all__ = [
     'ProductionPreprocessor',
+    'ProductionLoader',
     'get_days_in_month',
     'first_day_of_month',
     'last_day_of_month',
@@ -259,6 +261,33 @@ class ProductionPreprocessor:
         df = df.sort_values(by=[self.date_col], ascending=True)
         self.df = df
         return df
+
+
+class ProductionLoader:
+    """Load and preprocess data for a given API number."""
+
+    def __init__(
+            self,
+            prod_records_dir,
+            prod_csv_template="{api_num}_production_data.csv",
+            parse_dates=('First of Month',)
+    ):
+        """
+        :param prod_records_dir: Path to the folder containing the
+         production records.
+        :param prod_csv_template: Template for the production CSV files.
+        :param parse_dates: Headers of columns with dates to parse.
+        """
+        self.prod_records_dir = Path(prod_records_dir)
+        self.prod_csv_template = prod_csv_template
+        self.parse_dates = list(parse_dates)
+
+    def load(self, api_num):
+        """Load and preprocess for a given API number."""
+        prod_fp = self.prod_records_dir / self.prod_csv_template.format(api_num=api_num)
+        prod_raw = pd.read_csv(prod_fp, parse_dates=self.parse_dates)
+        preprocessor = ProductionPreprocessor(prod_raw)
+        return preprocessor.preprocess_all()
 
 
 def get_days_in_month(dt) -> int:
