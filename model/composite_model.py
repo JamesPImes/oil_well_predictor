@@ -86,7 +86,7 @@ class CompositeModelBuilder:
         models = []
         # [0.28532, 0.18392, ...]
         weights = []
-        for api_number, weight in wells_weights:
+        for api_number, weight in wells_weights.items():
             models.append(self.all_exp_regress_model_coefs[api_number])
             weights.append(weight)
         final_model = ExpRegressionModel.composite_model(models, weights)
