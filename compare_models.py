@@ -12,7 +12,7 @@ from utils import (
     get_prod_window,
 )
 from preprocess.prod_records.monthly_prod import ProductionPreprocessor
-from model.prod_records.exp_regress import ExpRegressionModel, dataframe_to_models
+from model.exp_regress.exp_regress import ExpRegressionModel, dataframe_to_models
 from model.nearest_wells.nearest_wells import (
     find_k_nearest,
     idw_weighting,

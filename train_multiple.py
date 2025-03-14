@@ -10,7 +10,7 @@ import dotenv
 import pandas as pd
 
 from preprocess.prod_records.monthly_prod import ProductionPreprocessor
-from model.prod_records.exp_regress import ExpRegressionModel
+from model.exp_regress.exp_regress import ExpRegressionModel
 from utils.json_to_model_params import json_to_exp_regress_params
 
 dotenv.load_dotenv()
