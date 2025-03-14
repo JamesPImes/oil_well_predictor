@@ -4,7 +4,7 @@ from preprocess.shl_bhl.lat_long import (
     calc_lat_long_midpoint,
     calc_lateral_distance,
 )
-from distance_calculator import get_distance_calculator, DistanceCalculator
+from .distance_calculator import get_distance_calculator, DistanceCalculator
 
 __all__ = [
     'find_k_nearest',  # TODO: Deprecate this function.
