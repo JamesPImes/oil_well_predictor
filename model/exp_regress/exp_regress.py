@@ -10,6 +10,7 @@ from utils import get_prod_window
 __all__ = [
     'ExpRegressionModel',
     'dataframe_to_models',
+    'train_all_exp_regress',
 ]
 
 
@@ -276,29 +277,32 @@ def train_all_exp_regress(
      contain strings that should be converted to dates.
     :param output_fp: (Optional) If passed, will save the trained models
      to a csv file at this path.
-    :param exp_regress_params: Keyword arguments that line up with
+    :param exp_regress_params: Any keyword arguments that line up with
      initializing an ``ExpRegressionModel`` instance. (Do not include
-     ``a``, ``b``, or other fields that will be calculated from the
-     training data.
+     ``a``, ``b``, or other fields that will be calculated during
+     training.)
     :return: A dataframe containing the details for a trained model for
      each well.
     """
     prod_records_dir = Path(prod_records_dir)
     exp_reg_models = []
     for _, row in wells.iterrows():
+        # Get production records.
         api_num = row['API_Label']
-        lat_length = row['lateral_length_ft']
         prod_fp = prod_records_dir / prod_csv_template.format(api_num=api_num)
         prod_raw = pd.read_csv(prod_fp, parse_dates=list(parse_dates))
         preprocessor = ProductionPreprocessor(prod_raw)
         prod = preprocessor.preprocess_all()
-        formations = sorted(preprocessor.formations)
 
+        # Train the model.
+        lat_length = row['lateral_length_ft']
         model = ExpRegressionModel(lateral_length_ft=lat_length, **exp_regress_params)
         model.train(prod)
         results = model.to_dict()
-        # Add some additional info.
+
+        # Additional ID and production info that's not part of the model.
         results['API_Label'] = api_num
+        formations = sorted(preprocessor.formations)
         results['formations'] = '|'.join(formations)
         exp_reg_models.append(results)
 
@@ -306,4 +310,3 @@ def train_all_exp_regress(
     if output_fp is not None:
         models_as_df.to_csv(output_fp, index=False)
     return models_as_df
-
