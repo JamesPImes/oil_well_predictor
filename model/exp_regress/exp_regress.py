@@ -176,17 +176,21 @@ class ExpRegressionModel:
         return np.exp(self.a + self.b * cumulative_elapsed_days) * lateral_length_ft
 
     @staticmethod
-    def weight_models(models: list['ExpRegressionModel'], weights: list[float] = None) -> 'ExpRegressionModel':
+    def composite_model(models_coefs: list[dict[str, float]], weights: list[float] = None) -> 'ExpRegressionModel':
         """
-        Generate a new model by weighting multiple models.
-        :param models: A list of previously trained ``ExpRegressionModel``
-         objects.
+        Generate a new model by combining the coefficients from multiple
+        models, with optional weighting.
+
+        :param models_coefs: A list of dicts containing the ``'a'`` and
+         ``'b'`` coefficient values from previously trained
+         ``ExpRegressionModel`` objects. Abbreviated example:
+         ``[{'a': -3.8632, 'b': -0.00165}, {'a': -2.9075, 'b': -0.00244}, ...]``
         :param weights: A list of weights to use for the provided
          models. Must be equal in length to the list of models. If not
          provided, will give each model equal weighting.
         :return: A new ``ExpRegressionModel``.
         """
-        n = len(models)
+        n = len(models_coefs)
         if weights is None:
             weights = [1 / n] * n
         if len(weights) != n:
@@ -195,9 +199,9 @@ class ExpRegressionModel:
             raise ValueError('Sum of `weights` must equal 1.0')
         a = 0.0
         b = 0.0
-        for model, weight in zip(models, weights):
-            a += model.a * weight
-            b += model.b * weight
+        for coefs, weight in zip(models_coefs, weights):
+            a += coefs['a'] * weight
+            b += coefs['b'] * weight
         return ExpRegressionModel(a=a, b=b)
 
     @staticmethod
