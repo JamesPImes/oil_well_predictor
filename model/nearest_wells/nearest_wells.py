@@ -66,7 +66,8 @@ class KNearestWellsFinder:
         well_distances = self._check_cache(k, api_num)
         if well_distances is not None:
             return well_distances
-        well_distances = self.distance_calculator.calc_all_distances_from_well(api_num)
+        well_distances = self.distance_calculator.calc_all_distances_from_well(
+            api_num, avail_api_nums=self.wells['API_Label'])
         nearest_k = self._reduce_to_nearest_k(well_distances, k)
         self._cache[k][api_num] = nearest_k
         return nearest_k
@@ -84,7 +85,8 @@ class KNearestWellsFinder:
         well_distances = self._check_cache(k, location)
         if well_distances is not None:
             return well_distances
-        well_distances = self.distance_calculator.calc_all_distances_from_location(location)
+        well_distances = self.distance_calculator.calc_all_distances_from_location(
+            location, avail_api_nums=self.wells['API_Label'])
         nearest_k = self._reduce_to_nearest_k(well_distances, k)
         self._cache[k][location] = nearest_k
         return nearest_k

@@ -64,32 +64,44 @@ class DistanceCalculator:
         self._well_cache[(api_num2, api_num1)] = dist
         return dist
 
-    def calc_all_distances_from_well(self, api_num) -> dict[str, float]:
+    def calc_all_distances_from_well(self, api_num, avail_api_nums=None) -> dict[str, float]:
         """
         Calculate distances for all other wells, starting from this well.
 
         :param api_num: The API number of the target well.
+        :param avail_api_nums: A collection of API numbers to
+         avail_api_nums in the search. If not passed, will check
+         everything in ``.locations`` (which could result in a distance
+         of 0, if the target is in that dict).
         :return: Dict of well API numbers and their distance to the
          target well.
         """
         dists = {}
-        for other_api in self.locations.keys():
+        if avail_api_nums is None:
+            avail_api_nums = self.locations.keys()
+        for other_api in avail_api_nums:
             if api_num == other_api:
                 continue
             dists[other_api] = self.calc_distance_between_wells(api_num, other_api)
         return dists
 
-    def calc_all_distances_from_location(self, location) -> dict[str, float]:
+    def calc_all_distances_from_location(self, location, avail_api_nums=None) -> dict[str, float]:
         """
         Calculate distances for all wells, starting from this location.
 
         :param location: The location of the target well (e.g., lat/long
          coord midpoint).
+        :param avail_api_nums: A collection of API numbers to
+         avail_api_nums in the search. If not passed, will check
+         everything in ``.locations`` (which could result in a distance
+         of 0, if the target is in that dict).
         :return: Dict of well API numbers and their distance to the
          target location.
         """
         dists = {}
-        for other_api in self.locations.keys():
+        if avail_api_nums is None:
+            avail_api_nums = self.locations.keys()
+        for other_api in avail_api_nums:
             other_location = self.locations[other_api]
             dists[other_api] = self.calc_distance_between_coords(location, other_location)
         return dists
