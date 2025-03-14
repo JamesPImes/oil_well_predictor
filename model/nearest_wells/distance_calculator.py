@@ -20,10 +20,10 @@ __all__ = [
 class DistanceCalculator:
     """Distance calculator with caching."""
 
-    def __init__(self, locations: dict[str, tuple]):
+    def __init__(self, locations: dict[str, tuple[float, float]]):
         """
         :param locations: A dict mapping API numbers to their locations
-         (represented by their midpoints).
+         (represented by the lat/long coord of their midpoints).
         """
         self.locations = locations
         self._coords_cache = {}
@@ -101,7 +101,7 @@ def calc_all_midpoints(
         lat_bhl_header: str = 'lat_bhl',
         long_bhl_header: str = 'long_bhl',
         api_header='API_Label'
-) -> dict[str, tuple]:
+) -> dict[str, tuple[float, float]]:
     """
     Calculate all midpoints for a set of wells.
 
