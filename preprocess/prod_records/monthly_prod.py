@@ -6,6 +6,8 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
+from utils import get_prod_window
+
 __all__ = [
     'ProductionPreprocessor',
     'ProductionLoader',
@@ -270,24 +272,55 @@ class ProductionLoader:
             self,
             prod_records_dir,
             prod_csv_template="{api_num}_production_data.csv",
-            parse_dates=('First of Month',)
+            parse_dates=('First of Month',),
+            use_cache=False,
+            apply_get_prod_window=False,
+            **get_prod_window_kwargs,
     ):
         """
         :param prod_records_dir: Path to the folder containing the
          production records.
         :param prod_csv_template: Template for the production CSV files.
         :param parse_dates: Headers of columns with dates to parse.
+        :param use_cache: If True, cache the loaded dataframes.
+         (Modifications to the dataframe elsewhere will affect the
+         dataframe in the cache too.)
+        :param apply_get_prod_window: If True, apply
+         ``utils.get_prod_window()`` to the results before returning.
+        :param get_prod_window_kwargs: Optional keyword arguments for
+         ``utils.get_prod_window()``.
         """
         self.prod_records_dir = Path(prod_records_dir)
         self.prod_csv_template = prod_csv_template
         self.parse_dates = list(parse_dates)
+        self.use_cache = use_cache
+        self._cache = {}
+        self.apply_get_prod_window = apply_get_prod_window
+        self.get_prod_window_kwargs = get_prod_window_kwargs
 
-    def load(self, api_num):
-        """Load and preprocess for a given API number."""
+    def load(self, api_num, ignore_cache=False):
+        """
+        Load and preprocess for a given API number.
+
+        :param api_num: The API number of the well to load production
+         for.
+        :param ignore_cache: If True, do not pull dataframe from the
+         cache. (Further, if the cache is being used, this will
+         overwrite that entry in the cache.)
+        """
+        if not ignore_cache:
+            results = self._cache.get(api_num)
+            if results is not None:
+                return results
         prod_fp = self.prod_records_dir / self.prod_csv_template.format(api_num=api_num)
         prod_raw = pd.read_csv(prod_fp, parse_dates=self.parse_dates)
         preprocessor = ProductionPreprocessor(prod_raw)
-        return preprocessor.preprocess_all()
+        results = preprocessor.preprocess_all()
+        if self.apply_get_prod_window:
+            results = get_prod_window(results, **self.get_prod_window_kwargs)
+        if self.use_cache:
+            self._cache[api_num] = results
+        return results
 
 
 def get_days_in_month(dt) -> int:
