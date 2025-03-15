@@ -83,7 +83,7 @@ class ExpRegressionModel:
         self.actual_months = actual_months
         self.weight_power = weight_power
 
-    def train(
+    def fit(
             self,
             prod_records: pd.DataFrame,
             lateral_length_ft: float = None,
@@ -301,7 +301,7 @@ def train_all_exp_regress(
         # Train the model.
         lat_length = row['lateral_length_ft']
         model = ExpRegressionModel(lateral_length_ft=lat_length, **exp_regress_params)
-        model.train(prod)
+        model.fit(prod)
         results = model.to_dict()
 
         # Additional ID and production info that's not part of the model.
