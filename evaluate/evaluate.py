@@ -7,12 +7,13 @@ from utils import get_cumulative_production, get_cumulative_days
 from preprocess.prod_records import ProductionLoader
 
 __all__ = [
+    'run_predictions_at_checkpoints',
     'evaluate',
     'kfold_cv',
 ]
 
 
-def evaluate(
+def run_predictions_at_checkpoints(
     train_wells: pd.DataFrame,
     test_wells: pd.DataFrame,
     production_loader: ProductionLoader,
@@ -21,13 +22,15 @@ def evaluate(
     idw_power: float,
     distance_calculator=None,
     month_checkpoints: list = (24, 36, 48),
-    metrics: dict = None,
-):
+) -> pd.DataFrame:
     """
-    Calculate scores for the requested metrics using the test data.
-    (To calculate scores on the training, pass the same set of wells
-    as ``train_wells`` and ``test_wells``.)
-
+    Run the predictions at the specified checkpoints (default is 24, 36,
+    and 48 months). Get back a dataframe containing the API numbers of
+    the wells in the test data, and columns for the actual and predicted
+    total production at each checkpoint. Those column headers have the
+    format ``'true_##'`` and  ''`pred_##`'' (where ``'##'`` would be
+    replaced with the number of months at that checkpoint -- e.g.,
+    ``'pred_48'``).
     :param train_wells: A dataframe of wells in training set.
     :param test_wells: A dataframe of wells in the test set.
     :param production_loader: A ``ProductionLoader`` object. (Should
@@ -40,20 +43,8 @@ def evaluate(
      nearness.
     :param distance_calculator: A ``DistanceCalculator`` object, prepped
      with all relevant wells.
-    :param metrics: A dict, whose keys are metric names and whose values
-     are functions to calculate them (should take actual total
-     production and predicted production).
     :param month_checkpoints: The months at which to calculate metrics.
      (Defaults to first 24, 36, and 48 months.)
-    :return: A nested dict. Top-level keys are the month checkpoints.
-     Internal dicts are the metric names and their scores.
-     Ex:  ``{48: {'mape': 0.234, 'mae': 12345}, ...}``.
-
-     Note that if there was insufficient data for a given well at a
-     requested checkpoint (e.g., a well produced only 47 months, but 48
-     months was requested), then that well will be dropped from metric
-     calculations. If no wells produced the requested number of months,
-     then all scores for that checkpoint be ``None``.
     """
     coefs = CompositeModelBuilder.extract_coefs_from_df(exp_reg_models)
     builder = CompositeModelBuilder(train_wells, knn_k, coefs, distance_calculator)
@@ -74,26 +65,57 @@ def evaluate(
         cumul_actual, cumul_pred = get_cumulative_production(
             actual_production, predicted_bbls, month_checkpoints)
         for chk in month_checkpoints:
-            if cumul_actual[chk] is None:
-                # This well did not have the requested number of months of production.
-                # Omit this well from our metrics for this checkpoint.
-                continue
             actual[chk].append(cumul_actual[chk])
             predicted[chk].append(cumul_pred[chk])
+    output_df = test_wells[['API_Label']].copy()
+    for chk in month_checkpoints:
+        output_df[f"true_{chk}"] = actual[chk]
+        output_df[f"pred_{chk}"] = predicted[chk]
+    return output_df
 
-    # Calculate each metric for each checkpoint.
-    checkpoint_results = {chk: {} for chk in month_checkpoints}
+
+def evaluate(
+    predictions: pd.DataFrame,
+    month_checkpoints: list = (24, 36, 48),
+    metrics: dict = None,
+):
+    """
+    Calculate scores for the requested metrics using the test data.
+    (To calculate scores on the training, pass the same set of wells
+    as ``train_wells`` and ``test_wells``.)
+
+    :param predictions: A dataframe containing results from
+     ``run_predictions_at_checkpoints()``.
+    :param month_checkpoints: A list of month checkpoints (defaults to
+     24, 36, and 48).
+    :param metrics: A dict, whose keys are metric names and whose values
+     are functions to calculate them (should take actual total
+     production and predicted production).
+    :return: A dataframe with the scores on each metric at each
+     checkpoint.
+
+     Note that if there was insufficient data for a given well at a
+     requested checkpoint (e.g., a well produced only 47 months, but 48
+     months was requested), then that well will be dropped from metric
+     calculations. If no wells produced the requested number of months,
+     then all scores for that checkpoint will be ``None``.
+    """
+    score_data = {'month_checkpoint': []}
+    for metric_name in metrics.keys():
+        score_data[metric_name.upper()] = []
     for checkpoint in month_checkpoints:
-        chk_actual = actual[checkpoint]
-        chk_pred = predicted[checkpoint]
-        results_dict = checkpoint_results[checkpoint]
+        score_data['month_checkpoint'].append(checkpoint)
+        chk_actual = np.array(predictions[f"true_{checkpoint}"])
+        chk_actual = chk_actual[~np.isnan(chk_actual)]
+        chk_pred = np.array(predictions[f"pred_{checkpoint}"])
+        chk_pred = chk_pred[~np.isnan(chk_pred)]
         for metric_name, func in metrics.items():
             # In case none of the wells had sufficient data at this checkpoint...
             res = None
-            if chk_actual:
+            if len(chk_actual) > 0:
                 res = func(chk_actual, chk_pred)
-            results_dict[metric_name] = res
-    return checkpoint_results
+            score_data[metric_name.upper()].append(res)
+    return pd.DataFrame(score_data)
 
 
 def kfold_cv(
@@ -110,7 +132,6 @@ def kfold_cv(
 ):
     """
     Run K-fold cross-validation with the provided ``wells``.
-
     """
     # checkpoint_results --> {48: {'mape': [0.123, 0.234, ...], 'mae': [23123, 41232, ...] } }
     # metric_avgs --> {48: {'mape': 0.210, 'mae': 21345} }
@@ -128,7 +149,7 @@ def kfold_cv(
     for i, (train_idxs, test_idxs) in enumerate(kf.split(wells), start=1):
         train_wells = wells.iloc[train_idxs]
         test_wells = wells.iloc[test_idxs]
-        fold_results = evaluate(
+        fold_results = run_predictions_at_checkpoints(
             train_wells,
             test_wells,
             production_loader=production_loader,
@@ -136,9 +157,10 @@ def kfold_cv(
             knn_k=knn_k,
             idw_power=idw_power,
             distance_calculator=distance_calculator,
-            metrics=metrics,
             month_checkpoints=month_checkpoints,
         )
+        # TODO: refactor this to take in and return a dataframe.
+        scores = evaluate(fold_results, month_checkpoints, metrics)
         # Extract the results of this fold into the main results dict.
         for chkpt, chkpt_metrics in fold_results.items():
             subresults_dict = checkpoint_results[chkpt]
