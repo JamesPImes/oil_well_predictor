@@ -21,6 +21,7 @@ __all__ = [
     'metrics_heatmaps',
     'prepare_exp_regress_models',
     'grid_search',
+    'plot_errors',
 ]
 
 
@@ -30,6 +31,7 @@ def convert_tuning_results_to_df(
         month_checkpoints: list = (24, 36, 48)
 ) -> pd.DataFrame:
     """Convert the CV results to a dataframe."""
+    # TODO: Refactor this to take in a dataframe.
     metric_names = [mn.lower() for mn in metric_names]
     tuning_results = {
         'param_set': [],
@@ -248,3 +250,72 @@ def grid_search(
     else:
         tuning_results = existing_tuning_results
     return tuning_results
+
+def plot_errors(
+        all_wells: pd.DataFrame,
+        preds: pd.DataFrame,
+        chkpt = 48,
+        abs_pow = 8,
+        pct_pow = 4,
+        abs_alpha = 0.35,
+        rel_alpha = 0.5,
+        abs_color = 'blue',
+        rel_color = 'red',
+        train_size = 0.8,
+        train_color = 'gray'
+):
+    """
+    Plot the relative and absolute error by location.
+
+    :param all_wells: A dataframe containing all wells (in both the
+     train and test datasets). Must contain columns for ``'API_Label'``,
+      ``'lat_midpoint'`` and ``'long_midpoint'``.
+    :param preds: A dataframe of predictions. Must contain the column
+     ``'API_Label'``, and also ``'true_##'`` and ``'pred_##'``, where
+     ``'##'`` corresponds to the month checkpoint.
+    :param chkpt: An integer representing the month checkpoint.
+     (Defaults to 48.)
+
+    (Other parameters control the plots' appearances.)
+    """
+    # Wells that are not in the test set will be plotted separately, with a
+    # different color, and no variation in size.
+    wells_train = all_wells.loc[~all_wells['API_Label'].isin(preds['API_Label'])]
+
+    # Add midpoint lat/long to our predictions dataframe.
+    preds = preds.merge(
+        all_wells[['API_Label', 'lat_midpoint', 'long_midpoint']],
+        on='API_Label',
+        how='left')
+    # Calculate absolute and relative error for each test well.
+    preds[f'abs_error_{chkpt}'] = abs(preds[f'true_{chkpt}'] - preds[f'pred_{chkpt}'])
+    preds[f'pct_error_{chkpt}'] = (preds[f'abs_error_{chkpt}']) / preds[f'true_{chkpt}']
+
+    # long, lat --> (x, y)
+    train_locs = (wells_train['long_midpoint'], wells_train['lat_midpoint'])
+    test_locs = (preds['long_midpoint'], preds['lat_midpoint'])
+
+    # Dot sizes to reflect magnitude of error.
+    # (Size is arbitrary; experiment to find values that look good.)
+    max_abs_error = preds[f'abs_error_{chkpt}'].max()
+    size_abserr = (1 + (preds[f'abs_error_{chkpt}'] / max_abs_error)) ** abs_pow
+    size_pcterr = (1 + preds[f'pct_error_{chkpt}']) ** pct_pow
+
+    fig, axs = plt.subplots(1, 2, figsize=(12, 4))
+    # Plot relative error on the left.
+    axs[0].scatter(*train_locs, s=train_size, c=train_color, label='Well in training data')
+    axs[0].scatter(
+        *test_locs, s=size_pcterr, c=rel_color, alpha=rel_alpha, label='Prediction (rel. error)')
+    axs[0].set_title('Relative Error at 48 Months')
+
+    # Plot absolute error on the right.
+    axs[1].scatter(*train_locs, s=train_size, c=train_color, label='Well in training data')
+    axs[1].scatter(
+        *test_locs, s=size_abserr, c=abs_color, alpha=abs_alpha, label='Prediction (abs. error)')
+    axs[1].set_title('Absolute Error at 48 Months')
+
+    for ax in axs:
+        ax.set_xlabel('Longitude')
+        ax.set_ylabel('Latitude')
+        ax.legend(loc='upper left')
+    return fig, axs
