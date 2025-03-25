@@ -31,8 +31,7 @@ def convert_tuning_results_to_df(
         month_checkpoints: list = (24, 36, 48)
 ) -> pd.DataFrame:
     """Convert the CV results to a dataframe."""
-    # TODO: Refactor this to take in a dataframe.
-    metric_names = [mn.lower() for mn in metric_names]
+    metric_names = [mn.upper() for mn in metric_names]
     tuning_results = {
         'param_set': [],
         'exp_reg_weight': [],
@@ -54,6 +53,7 @@ def convert_tuning_results_to_df(
                 tuning_results[f"{metric_name}_{chkpt}"].append(float(score))
     return pd.DataFrame(tuning_results)
 
+
 def rank_best(results_df: pd.DataFrame, metric_name: str, month_checkpoint: int, ideal='MIN'):
     """Rank the parameter sets by their score for the chosen metric."""
     target = f"{metric_name}_{month_checkpoint}"
@@ -67,6 +67,7 @@ def rank_best(results_df: pd.DataFrame, metric_name: str, month_checkpoint: int,
     relevant_scores = relevant_scores.sort_values(
         by=target, ascending=ascending, ignore_index=True)
     return relevant_scores
+
 
 def metrics_heatmaps(
     tuning_results_subset: pd.DataFrame,
@@ -97,7 +98,7 @@ def metrics_heatmaps(
         col = 0
         for chkpt in checkpoints:
             ax = axs[row][col]
-            col_header = f"{metric_name}_{chkpt}".lower()
+            col_header = f"{metric_name}_{chkpt}".upper()
             piv = tuning_results_subset.pivot_table(
                 values=col_header, index=['knn_k'], columns=['idw_power'])
             sns.heatmap(
@@ -113,6 +114,7 @@ def metrics_heatmaps(
         row += 1
     plt.show()
     return None
+
 
 def prepare_exp_regress_models(
     wells_all: pd.DataFrame,
@@ -162,6 +164,7 @@ def prepare_exp_regress_models(
         exp_reg_models_by_weights[wt] = models
     print("Initial exponential regression models complete.\n")
     return exp_reg_models_by_weights
+
 
 def grid_search(
     wells_train: pd.DataFrame,
@@ -250,6 +253,7 @@ def grid_search(
     else:
         tuning_results = existing_tuning_results
     return tuning_results
+
 
 def plot_errors(
         all_wells: pd.DataFrame,
