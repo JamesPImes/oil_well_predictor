@@ -31,6 +31,7 @@ def run_predictions_at_checkpoints(
     format ``'true_##'`` and  ''`pred_##`'' (where ``'##'`` would be
     replaced with the number of months at that checkpoint -- e.g.,
     ``'pred_48'``).
+
     :param train_wells: A dataframe of wells in training set.
     :param test_wells: A dataframe of wells in the test set.
     :param production_loader: A ``ProductionLoader`` object. (Should
@@ -45,6 +46,7 @@ def run_predictions_at_checkpoints(
      with all relevant wells.
     :param month_checkpoints: The months at which to calculate metrics.
      (Defaults to first 24, 36, and 48 months.)
+    :return: A dataframe as described above.
     """
     coefs = CompositeModelBuilder.extract_coefs_from_df(exp_reg_models)
     builder = CompositeModelBuilder(train_wells, knn_k, coefs, distance_calculator)
@@ -92,7 +94,9 @@ def evaluate(
      are functions to calculate them (should take actual total
      production and predicted production).
     :return: A dataframe with the scores on each metric at each
-     checkpoint.
+     checkpoint. Fields are ``'month_checkpoint'`` and
+     ``'<metric_name>_##'`` (where ``##`` corresponds to each
+     checkpoint) for each metric/checkpoint pair.
 
      Note that if there was insufficient data for a given well at a
      requested checkpoint (e.g., a well produced only 47 months, but 48
@@ -159,13 +163,13 @@ def kfold_cv(
             distance_calculator=distance_calculator,
             month_checkpoints=month_checkpoints,
         )
-        # TODO: refactor this to take in and return a dataframe.
-        scores = evaluate(fold_results, month_checkpoints, metrics)
-        # Extract the results of this fold into the main results dict.
-        for chkpt, chkpt_metrics in fold_results.items():
+        fold_scores = evaluate(fold_results, month_checkpoints, metrics)
+        for chkpt in month_checkpoints:
+            chk_scores = fold_scores.loc[fold_scores['month_checkpoint'] == chkpt].iloc[0]
             subresults_dict = checkpoint_results[chkpt]
-            for metric_name, score in chkpt_metrics.items():
-                if score is None:
+            for metric_name in metrics.keys():
+                score = chk_scores[metric_name]
+                if score is None or np.isnan(score):
                     continue
                 subresults_dict[metric_name].append(score)
     # Find averages for each checkpoint/metric.
