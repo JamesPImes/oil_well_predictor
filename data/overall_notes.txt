@@ -1,4 +1,5 @@
-Data has been scraped or downloaded from various parts of Colorado's Energy & Carbon Management Commission ("ECMC") website: <https://ecmc.state.co.us>.
+Data has been scraped or downloaded from various parts of Colorado's 
+Energy & Carbon Management Commission ("ECMC") website: <https://ecmc.state.co.us>.
 
 The ECMC oversees regulation of oil and gas operations in the State of
 Colorado and provides data for free to the public.
