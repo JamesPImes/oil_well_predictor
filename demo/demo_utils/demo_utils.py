@@ -259,12 +259,12 @@ def plot_errors(
         all_wells: pd.DataFrame,
         preds: pd.DataFrame,
         chkpt = 48,
-        abs_pow = 8,
-        pct_pow = 4,
+        abs_pow = 8.0,
+        rel_pow = 4.5,
         abs_alpha = 0.35,
         rel_alpha = 0.5,
         abs_color = 'blue',
-        rel_color = 'red',
+        rel_color = 'purple',
         train_size = 0.8,
         train_color = 'gray'
 ):
@@ -291,19 +291,18 @@ def plot_errors(
         all_wells[['API_Label', 'lat_midpoint', 'long_midpoint']],
         on='API_Label',
         how='left')
-    # Calculate absolute and relative error for each test well.
-    preds[f'abs_error_{chkpt}'] = abs(preds[f'true_{chkpt}'] - preds[f'pred_{chkpt}'])
-    preds[f'pct_error_{chkpt}'] = (preds[f'abs_error_{chkpt}']) / preds[f'true_{chkpt}']
 
     # long, lat --> (x, y)
     train_locs = (wells_train['long_midpoint'], wells_train['lat_midpoint'])
     test_locs = (preds['long_midpoint'], preds['lat_midpoint'])
 
-    # Dot sizes to reflect magnitude of error.
+    # Calculate dot sizes to reflect magnitude of errors.
     # (Size is arbitrary; experiment to find values that look good.)
-    max_abs_error = preds[f'abs_error_{chkpt}'].max()
-    size_abserr = (1 + (preds[f'abs_error_{chkpt}'] / max_abs_error)) ** abs_pow
-    size_pcterr = (1 + preds[f'pct_error_{chkpt}']) ** pct_pow
+    abs_err = abs(preds[f'true_{chkpt}'] - preds[f'pred_{chkpt}'])
+    pct_err = abs_err / preds[f'true_{chkpt}']
+    max_abs_error = abs_err.max()
+    size_abserr = (1 + (abs_err / max_abs_error)) ** abs_pow
+    size_pcterr = (1 + pct_err) ** rel_pow
 
     fig, axs = plt.subplots(1, 2, figsize=(12, 4))
     # Plot relative error on the left.
