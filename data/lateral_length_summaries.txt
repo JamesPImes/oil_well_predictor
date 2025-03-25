@@ -1,10 +1,13 @@
 Lateral length (ft), scraped and calculated from "scout cards" of wells,
 accessed from the ECMC's website.
 
-Interval Top: xxxx ft.
-Interval Bottom: xxxx ft.
 Measured TD: xxxx ft. (total depth)
+Vertical TD: xxxx ft. (total depth)
 
-Lateral length is [interval bottom] - [interval top], if both are available.
-Measured TD is used in place of interval bottom where the bottom is not
-specified in the scout card.
+Lateral length is [Measured TD] - [Vertical TD], if both are available.
+If either is unavailable, the distance between SHL and BHL (calculated
+elsewhere) is used instead.
+
+This isn't perfectly accurate. Better would probably be 
+[Measured TD] - [Top of Target Formation], but that isn't available for
+many of these wells. I figured it was better to prioritize to consistency.
