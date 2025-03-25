@@ -2,4 +2,4 @@ Monthly production data for each well, scraped from the ECMC's website.
 
 URL: https://ecmc.state.co.us/cogisdb/Facility/Production?api_county_code=xxx&api_seq_num=yyyyy
 
-('xxxxxxxx' corresponds to the "API" number for the well: 05-xxx-yyyyy)
+('xxxyyyyy' corresponds to the "API" number for the well: 05-xxx-yyyyy)
